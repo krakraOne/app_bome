@@ -599,6 +599,7 @@ VALUES (
           <div class="srow"><div class="sleft"><div class="sico ico-o">🟠</div><div><div class="sname" style="color:var(--orange)">Orange Money</div><div class="samt" id="orangeAmt">0 FCFA</div></div></div><div class="sctrl"><button class="cb cbm" onclick="rm('orange')">−</button><input class="cin" type="number" id="orangeN" value="0" min="0" inputmode="numeric" onchange="sc('orange')"><button class="cb cbp" onclick="ad('orange')">+</button></div></div>
         </div>
         <button class="btn btn-ghost btn-w" id="btnCorrect" onclick="openMod('mCorrect')" style="margin-top:8px;font-size:12px;display:none">✏️ Corriger une quantité</button>
+        <button class="btn btn-ghost btn-w" id="btnAnnuler" onclick="annuler()" style="margin-top:6px;font-size:12px;opacity:.35" disabled>↩️ Annuler la dernière vente</button>
       </div>
 
       <div class="slabel">📈 Résumé</div>
@@ -624,9 +625,7 @@ VALUES (
       <div id="objBar" style="margin-bottom:12px"></div>
       <div class="slabel">🔒 Clôture</div>
       <div class="card" style="animation:cardIn .3s ease .15s backwards">
-        <div class="clot-field"><label>💵 En main</label><input type="number" id="physCash" placeholder="Montant espèces" inputmode="numeric" oninput="calcEcart()"></div>
-        <div class="ecart-band ec-ok" id="ecartBand" style="display:none"><span class="ec-lbl">Écart de caisse</span><span class="ec-val" id="ecartV">0 F</span></div>
-        <button class="btn btn-red btn-w" onclick="openCloture()">📊 Clôturer et verrouiller</button>
+        <button class="btn btn-red btn-w" onclick="terminerJournee()">🔒 Terminer la journée</button>
       </div>
     </div>
 
@@ -680,7 +679,14 @@ VALUES (
         </div>
       </div>
 
-      <div class="slabel">💰 Suivi retraits</div>
+      <div class="slabel" style="margin-top:4px">📊 Performances de l'équipe</div>
+      <div id="perfTable"></div>
+      <div class="slabel" style="margin-top:4px">📋 Tableau de réapprovisionnement</div>
+      <div id="reapproTable"></div>
+      <div class="slabel" style="margin-top:4px">👤 Filleuls</div>
+      <div id="vcCards"><div class="empty"><div class="empty-ico">📊</div><div class="empty-txt">Chargement…</div></div></div>
+
+      <div class="slabel" style="margin-top:4px">💰 Suivi retraits</div>
       <div class="card" style="animation:cardIn .3s ease .05s backwards">
         <div class="ret-band">
           <div class="ret-box ret-t"><div class="ret-val" id="rtT">0 F</div><div class="ret-lbl">Commission</div></div>
@@ -690,9 +696,6 @@ VALUES (
         <button class="btn btn-amber btn-w" onclick="openRetrait()">💸 Enregistrer un retrait</button>
         <div id="retList" style="margin-top:10px"></div>
       </div>
-
-      <div class="slabel" style="margin-top:4px">📊 Rapports de l'équipe</div>
-      <div id="vcCards"><div class="empty"><div class="empty-ico">📊</div><div class="empty-txt">Chargement…</div></div></div>
 
       <div class="slabel" style="margin-top:4px">➕ Ajouter un filleul</div>
       <div class="card" style="animation:cardIn .3s ease .22s backwards">
@@ -755,14 +758,6 @@ VALUES (
 
 <!-- ════ MODALS ════ -->
 
-<!-- Clôture -->
-<div class="mbg" id="mCloture"><div class="msheet">
-  <div class="mhandle"></div>
-  <div class="mtitle">📊 Confirmer la clôture</div>
-  <div id="clotRecap" style="font-size:13px;color:var(--muted);line-height:1.85;margin-bottom:12px;background:var(--bg);border-radius:10px;padding:13px;border:1px solid var(--border)"></div>
-  <p style="font-size:12px;color:var(--muted);margin-bottom:12px">⚠️ La journée sera <b>verrouillée</b> après clôture.</p>
-  <div class="macts"><button class="mbtn mbtn-c" onclick="closeMod('mCloture')">Annuler</button><button class="mbtn mbtn-red" onclick="doCloture()">🔒 Clôturer</button></div>
-</div></div>
 
 <!-- Corriger quantité -->
 <div class="mbg" id="mCorrect"><div class="msheet">
@@ -781,15 +776,21 @@ VALUES (
   <div class="macts"><button class="mbtn mbtn-c" onclick="closeMod('mCorrect')">Annuler</button><button class="mbtn mbtn-ok" onclick="doCorrect()">✅ Appliquer</button></div>
 </div></div>
 
-<!-- Signature -->
-<div class="mbg" id="mSig"><div class="msheet">
+<!-- Validation PIN leader -->
+<div class="mbg" id="mValPin"><div class="msheet">
   <div class="mhandle"></div>
-  <div class="mtitle">✍️ Signer le rapport</div>
-  <div id="sigInfo" style="font-size:12px;color:var(--muted);margin-bottom:11px;background:var(--bg);border-radius:10px;padding:10px;border:1px solid var(--border)"></div>
-  <div style="font-size:10px;font-weight:700;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.08em">Votre signature</div>
-  <div class="sig-wrap" id="sigWrap"><canvas id="sigCanvas"></canvas><div class="sig-hint">✍️ Signez ici avec votre doigt</div></div>
-  <button class="btn btn-ghost btn-w" onclick="clearSig()" style="margin-bottom:10px;font-size:12px;padding:9px">🗑️ Effacer</button>
-  <div class="macts"><button class="mbtn mbtn-c" onclick="closeMod('mSig')">Annuler</button><button class="mbtn mbtn-purple" onclick="doSign()">✅ Valider</button></div>
+  <div class="mtitle">🔐 Valider le rapport</div>
+  <div id="vpInfo" style="font-size:12px;color:var(--muted);margin-bottom:10px;background:var(--bg);border-radius:10px;padding:10px;border:1px solid var(--border);text-align:center"></div>
+  <div style="font-size:10px;font-weight:700;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.08em;text-align:center">Entrez votre PIN</div>
+  <div class="pin-dots"><div class="pdot" id="vp0"></div><div class="pdot" id="vp1"></div><div class="pdot" id="vp2"></div><div class="pdot" id="vp3"></div></div>
+  <div id="vpErr" style="text-align:center;font-size:12px;font-weight:700;color:var(--red);min-height:16px;margin-bottom:8px;display:none"></div>
+  <div class="pc-grid">
+    <div class="pk" onclick="vpK('1')">1</div><div class="pk" onclick="vpK('2')">2</div><div class="pk" onclick="vpK('3')">3</div>
+    <div class="pk" onclick="vpK('4')">4</div><div class="pk" onclick="vpK('5')">5</div><div class="pk" onclick="vpK('6')">6</div>
+    <div class="pk" onclick="vpK('7')">7</div><div class="pk" onclick="vpK('8')">8</div><div class="pk" onclick="vpK('9')">9</div>
+    <div></div><div class="pk zero" onclick="vpK('0')">0</div><div class="pk" onclick="vpD()" style="font-size:16px">⌫</div>
+  </div>
+  <div class="macts"><button class="mbtn mbtn-c" onclick="closeMod('mValPin');valPinBuf=''">Annuler</button></div>
 </div></div>
 
 <!-- Rapport WA -->
