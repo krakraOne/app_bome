@@ -741,8 +741,8 @@ const COMM_L = 50;
 
 // ════ STATE ════
 function freshState(){return{profile:null,journees:[],team:[],teamJ:[],retraits:[],
-  started:false,stock:0,N:{cash:0,wave:0,orange:0},phys:0,openTs:null,
-  autoInt:null,sinceInt:null,delId:null,delFId:null,promId:null,sigJId:null,objectif:0};}
+  started:false,stock:0,N:{cash:0,wave:0,orange:0},openTs:null,history:[],
+  autoInt:null,sinceInt:null,delId:null,delFId:null,promId:null,objectif:0};}
 let S=freshState();
 let pcBuf='',pcStage='old',pcNew='';
 let dfBuf='',ppBuf='';
@@ -829,7 +829,7 @@ async function loadTeam(){
     const ids=S.team.map(m=>m.id);
     const{data:jours}=await sb.from('journees').select('*, users(nom,identifiant), signatures(id,signed_at)').in('vendeur_id',ids).order('date_journee',{ascending:false});
     S.teamJ=jours||[];
-    const unsig=S.teamJ.filter(j=>j.locked&&(!j.signatures||!j.signatures.length));
+    const unsig=S.teamJ.filter(j=>j.locked&&!j.valide);
     const b=document.getElementById('eqBadge');
     if(unsig.length){b.style.display='flex';b.textContent=unsig.length>9?'9+':unsig.length;}
     else b.style.display='none';
@@ -841,8 +841,8 @@ async function loadTeam(){
 
 // ════ COMMISSIONS ════
 function computeComm(s,isF){
-  const tot=s*PRICE,me=Math.round(tot*.4),lead=isF?s*COMM_L:0;
-  return{tot,me,lead,ent:tot-me-lead};
+  const tot=s*PRICE,me=s*50,lead=isF?s*COMM_L:0,ent=s*600;
+  return{tot,me,lead,ent};
 }
 
 // ════ CRÉATION FILLEUL ════
@@ -919,8 +919,9 @@ function startDay(){
 }
 function sold(){return S.N.cash+S.N.wave+S.N.orange;}
 function used(){return sold();}
-function ad(t){if(!S.started){toast("Ouvrez d'abord la journée",'info');return;}if(used()>=S.stock){toast('⚠️ Stock épuisé !','error');return;}S.N[t]++;bumpEl(t+'N');upd();}
+function ad(t){if(!S.started){toast("Ouvrez d'abord la journée",'info');return;}if(used()>=S.stock){toast('⚠️ Stock épuisé !','error');return;}S.N[t]++;S.history.push(t);if(S.history.length>10)S.history.shift();bumpEl(t+'N');upd();}
 function rm(t){if(S.N[t]<=0)return;S.N[t]--;bumpEl(t+'N');upd();}
+function annuler(){if(!S.history.length)return;const t=S.history.pop();if(S.N[t]>0)S.N[t]--;bumpEl(t+'N');upd();toast('↩️ Annulé','info');}
 function sc(t){if(!S.started){toast("Ouvrez d'abord",'info');return;}const el=document.getElementById(t+'N');let v=parseInt(el.value)||0;if(v<0)v=0;const o=used()-S.N[t];if(o+v>S.stock){v=S.stock-o;toast('⚠️ Limité à '+S.stock,'error');}S.N[t]=v;upd();}
 function bumpEl(id){const el=document.getElementById(id);el.classList.remove('bump');void el.offsetWidth;el.classList.add('bump');setTimeout(()=>el.classList.remove('bump'),280);}
 
@@ -968,16 +969,9 @@ function upd(){
       +'</svg>'
       +'</div>';
   })();
-  calcEcart();saveLocal();
+  const btnA=document.getElementById('btnAnnuler');if(btnA){btnA.disabled=!S.history.length;btnA.style.opacity=S.history.length?'1':'.35';}
+  saveLocal();
 }
-function calcEcart(){
-  const el=document.getElementById('physCash');S.phys=parseFloat(el.value)||0;
-  const exp=S.N.cash*PRICE,ec=S.phys-exp;
-  const band=document.getElementById('ecartBand'),ecV=document.getElementById('ecartV');
-  if(el.value!==''){band.style.display='flex';band.className='ecart-band '+(ec<0?'ec-bad':'ec-ok');ecV.textContent=(ec>=0?'+':'')+fmt(ec)+' F';ecV.style.color=ec<0?'var(--red)':'var(--accent)';}
-  else band.style.display='none';
-}
-
 // ════ TIMERS ════
 function startSince(){
   if(S.sinceInt)clearInterval(S.sinceInt);
@@ -998,32 +992,10 @@ function startAutoWatch(){
 }
 
 // ════ CLÔTURE ════
-async function openCloture(){
+async function terminerJournee(auto=false){
   if(!S.started){toast('Aucune journée en cours','error');return;}
-  const s=sold(),isF=!!(S.profile?.leader_id),r=computeComm(s,isF),ec=S.phys-(S.N.cash*PRICE);
-  // Fetch AVG from Supabase
-  let avgMsg='';
-  try{
-    const{data}=await sb.from('journees').select('total_vendu').eq('vendeur_id',S.profile.id);
-    if(data&&data.length){
-      const avg=parseFloat((data.reduce((a,j)=>a+(j.total_vendu||0),0)/data.length).toFixed(1));
-      if(s>avg)       avgMsg='<div style="margin-top:8px;font-weight:700;color:var(--accent)">🔥 Au-dessus de ta moyenne ('+avg+' u.) !</div>';
-      else if(s===avg) avgMsg='<div style="margin-top:8px;font-weight:700;color:var(--blue)">👌 Dans ta moyenne !</div>';
-      else             avgMsg='<div style="margin-top:8px;font-weight:700;color:var(--amber)">💪 Accroche-toi, moyenne : '+avg+' u.</div>';
-    }
-  }catch(e){}
-  document.getElementById('clotRecap').innerHTML=
-    '📦 Vendus : '+s+' unités — '+fmt(r.tot)+' F<br>'
-    +'💵 '+S.N.cash+' · 📲 '+S.N.wave+' · 🟠 '+S.N.orange+'<br>'
-    +'📦 Restants : '+Math.max(0,S.stock-used())+'<br>'
-    +'💵 En main : '+fmt(S.phys)+' F<br>'
-    +'<span style="color:'+(ec<0?'var(--red)':'var(--accent)')+'">⚖️ Écart : '+(ec>=0?'+':'')+fmt(ec)+' F</span>'
-    +avgMsg;
-  openMod('mCloture');
-}
-async function doCloture(auto=false){
   const s=sold(),isF=!!(S.profile?.leader_id),r=computeComm(s,isF);
-  const now=new Date(),physVal=auto?S.N.cash*PRICE:S.phys;
+  const now=new Date();
   showLoad('Sauvegarde…');
   const{data,error}=await sb.from('journees').insert({
     vendeur_id:S.profile.id,
@@ -1033,21 +1005,20 @@ async function doCloture(auto=false){
     total_vendu:s,restants:Math.max(0,S.stock-used()),
     total_fcfa:r.tot,part_entreprise:Math.round(r.tot*.6),part_entreprise_nette:r.ent,
     commission_vendeur:r.me,commission_leader:r.lead,
-    ecart_caisse:physVal-(S.N.cash*PRICE),especes_en_main:physVal,
     auto_cloture:auto,bilan_fait:false,locked:true,objectif:S.objectif||0,
-    open_ts:new Date(S.openTs).toISOString(),close_ts:new Date(now.getTime()).toISOString(),prix_unitaire:PRICE
+    open_ts:new Date(S.openTs).toISOString(),close_ts:now.toISOString(),prix_unitaire:PRICE
   }).select().single();
   hideLoad();if(error){toast('❌ '+error.message,'error');return;}
-  S.journees.unshift(data);closeMod('mCloture');resetDay();
-  toast(auto?'⏰ Clôture automatique !':'🔒 Journée clôturée !','success');renderHist();
+  S.journees.unshift(data);resetDay();
+  toast(auto?'⏰ Clôture automatique !':'🔒 Journée terminée !','success');renderHist();
 }
-async function doAutoClose(){S.started=true;await doCloture(true);}
+async function doAutoClose(){S.started=true;await terminerJournee(true);}
 function resetDay(){
-  S.started=false;S.stock=0;S.N={cash:0,wave:0,orange:0};S.phys=0;S.openTs=null;
+  S.started=false;S.stock=0;S.N={cash:0,wave:0,orange:0};S.openTs=null;
   if(S.autoInt)clearInterval(S.autoInt);if(S.sinceInt)clearInterval(S.sinceInt);
   document.getElementById('autoAlert').style.display='none';
   document.getElementById('btnCorrect').style.display='none';
-  document.getElementById('stockQty').value='';document.getElementById('physCash').value='';
+  document.getElementById('stockQty').value='';
   document.getElementById('openSince').textContent='—';
   localStorage.removeItem('bf_cur');upd();checkBlock();
 }
@@ -1105,8 +1076,7 @@ function renderHist(){
       +'<div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end">'+(j.auto_cloture?'<span class="badge b-auto">⏰ Auto</span>':'<span class="badge b-lock">🔒 Verr.</span>')+sigB+'</div></div>'
       +'<div class="hrow" style="margin-top:3px"><span style="font-size:11px;color:var(--muted);font-weight:600">Mon gain :</span><div class="hgain">'+fmt(j.commission_vendeur)+' F</div></div></div>'
       +'<div class="hchips"><span class="hc">💵 '+j.vendu_cash+'</span><span class="hc">📲 '+j.vendu_wave+'</span><span class="hc">🟠 '+j.vendu_orange+'</span>'
-      +'<span class="hc">📦 Reste '+j.restants+'</span>'
-      +(j.ecart_caisse!==0?'<span class="hc '+(j.ecart_caisse<0?'r':'g')+'">⚖️ '+(j.ecart_caisse>=0?'+':'')+fmt(j.ecart_caisse)+' F</span>':'<span class="hc g">✅ OK</span>')+'</div>'
+      +'<span class="hc">📦 Reste '+j.restants+'</span></div>'
       +'<div style="display:flex;flex-direction:column;gap:7px">'
       +'<div class="hacts"><button class="btn btn-ghost btn-sm" onclick="openRptModal(\''+j.id+'\','+i+')">👁 Aperçu</button>'+waZ
       +'<button class="btn btn-sm" style="background:rgba(239,68,68,.1);color:var(--red);border:1px solid rgba(239,68,68,.2)" onclick="askDelEntry(\''+j.id+'\',\''+esc(j.date_label||j.date_journee)+'\','+j.commission_vendeur+')">🗑️</button></div>'
@@ -1137,27 +1107,172 @@ async function renderEquipe(){
   const rl=document.getElementById('retList');
   if(!S.retraits.length){rl.innerHTML='<div style="font-size:12px;color:var(--muted);text-align:center;padding:6px">Aucun retrait</div>';}
   else{rl.innerHTML='<div class="slabel" style="margin:8px 0 6px">Historique retraits</div>'+S.retraits.slice(0,5).map(r=>'<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)"><div><div style="font-size:12px;font-weight:700">'+fmt(r.montant)+' F</div><div style="font-size:10px;color:var(--muted)">'+esc(r.note||'—')+' · '+new Date(r.created_at).toLocaleDateString('fr-FR')+'</div></div><span style="font-size:10px;color:var(--amber);font-weight:700">💸</span></div>').join('');}
+  // ── Tableau de performances (une ligne par filleul) ──
+  const pt=document.getElementById('perfTable');
   const byV={};S.team.forEach(m=>{byV[m.id]={m,j:[]};});S.teamJ.forEach(j=>{if(byV[j.vendeur_id])byV[j.vendeur_id].j.push(j);});
+  const rows=Object.values(byV);
+  if(!rows.length){pt.innerHTML='<div style="font-size:12px;color:var(--muted);text-align:center;padding:10px">Aucun filleul actif</div>';}
+  else{
+    let tStock=0,tVendu=0,tRest=0,tEnt=0,tComm=0;
+    const tbody=rows.map(({m,j})=>{
+      const last=j[0];
+      if(!last)return '<tr><td><strong>'+esc(m.nom)+'</strong><br><span style="font-size:10px;color:var(--muted)">@'+esc(m.identifiant)+'</span></td><td colspan="6" style="color:var(--muted);font-size:11px">Aucune journée</td></tr>';
+      const v=last.total_vendu||0;
+      tStock+=last.stock_initial||0;tVendu+=v;tRest+=last.restants||0;
+      tEnt+=v*600;
+      const isVal=last.valide,isLocked=last.locked;
+      const commVal=isVal?v*50:0;tComm+=commVal;
+      const dl=esc(last.date_label||last.date_journee);
+      const statut=isVal
+        ?'<span class="pt-stat-ok">✅ Validé</span>'
+        :isLocked
+          ?'<span class="pt-stat-sub">⏳ En attente</span> <button class="pt-btn-val" onclick="openValPin(\''+last.id+'\',\''+dl+'\','+v+')">🔑 PIN</button>'
+          :'<span class="pt-stat-en">⏳ En cours</span>';
+      return '<tr>'
+        +'<td><strong>'+esc(m.nom)+'</strong><br><span style="font-size:10px;color:var(--muted)">@'+esc(m.identifiant)+'</span></td>'
+        +'<td class="pt-mono" style="color:var(--muted)">'+last.stock_initial+'</td>'
+        +'<td class="pt-mono" style="color:var(--blue)">'+v+'</td>'
+        +'<td class="pt-mono" style="color:var(--muted)">'+last.restants+'</td>'
+        +'<td class="pt-mono" style="color:var(--red)">'+fmt(v*600)+' F</td>'
+        +'<td class="pt-mono" style="color:var(--accent)">'+(isVal?fmt(v*50)+' F':'—')+'</td>'
+        +'<td>'+statut+'</td>'
+        +'</tr>';
+    }).join('');
+    const tfoot='<tr style="background:var(--card);font-weight:800;border-top:2px solid var(--border)">'
+      +'<td style="font-size:11px;font-weight:800;color:var(--muted)">Total</td>'
+      +'<td class="pt-mono" style="color:var(--muted)">'+tStock+'</td>'
+      +'<td class="pt-mono" style="color:var(--blue)">'+tVendu+'</td>'
+      +'<td class="pt-mono" style="color:var(--muted)">'+tRest+'</td>'
+      +'<td class="pt-mono" style="color:var(--red)">'+fmt(tEnt)+' F</td>'
+      +'<td class="pt-mono" style="color:var(--accent)">'+fmt(tComm)+' F</td>'
+      +'<td></td>'
+      +'</tr>';
+    pt.innerHTML='<div class="pt-wrap"><table>'
+      +'<thead><tr><th>Vendeur</th><th>Stock</th><th style="color:var(--blue)">Vendus</th><th>Restants</th><th style="color:var(--red)">Vers. entreprise</th><th style="color:var(--accent)">Commission</th><th>Statut</th></tr></thead>'
+      +'<tbody>'+tbody+tfoot+'</tbody></table></div>';
+  }
+  buildReappro();
+  // ── Cartes filleuls ──
   const vc=document.getElementById('vcCards');
   if(!S.team.length){vc.innerHTML='<div class="empty"><div class="empty-ico">📊</div><div class="empty-txt">Aucun filleul actif.</div></div>';return;}
   const avs=['🟢','🔵','🟡','🟠','🔴','🟣'];
   vc.innerHTML=Object.values(byV).map(({m,j},idx)=>{
-    const last=j[0],isSig=last&&last.signatures&&last.signatures.length>0,comm=last?last.commission_leader||0:0;
-    return '<div class="vc '+(isSig?'vc-sign':'vc-no')+'">'
+    const last=j[0],isVal=last&&last.valide,comm=last?last.commission_leader||0:0;
+    return '<div class="vc '+(isVal?'vc-sign':'vc-no')+'">'
       +'<div class="vc-hdr"><div><div class="vc-name">'+avs[idx%avs.length]+' '+esc(m.nom)+'</div><div class="vc-date">@'+esc(m.identifiant)+' · '+esc(last?last.date_label||last.date_journee:'Aucune journée')+'</div></div>'
-      +'<div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">'+(isSig?'<span class="badge b-sign">✍️ Signé</span>':'<span class="badge b-no">⏳ Non signé</span>')+'<span style="font-size:10px;font-weight:700;color:var(--purple)">'+fmt(comm)+' F</span></div></div>'
-      +(last?'<div class="vc-grid"><div class="vci"><div class="vci-lbl">📦 Qté totale</div><div class="vci-val">'+last.stock_initial+'</div></div>'
+      +'<div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">'+(isVal?'<span class="badge b-sign">✅ Validé</span>':last&&last.locked?'<span class="badge b-no">🔒 Soumis</span>':'<span class="badge b-no">⏳ En cours</span>')+'</div></div>'
+      +(last?'<div class="vc-grid"><div class="vci"><div class="vci-lbl">📦 Stock initial</div><div class="vci-val">'+last.stock_initial+'</div></div>'
         +'<div class="vci ac"><div class="vci-lbl">✅ Ventes</div><div class="vci-val">'+last.total_vendu+' u.</div></div>'
-        +'<div class="vci ac"><div class="vci-lbl">💰 Versements</div><div class="vci-val">'+fmt(last.total_fcfa)+' F</div></div>'
-        +'<div class="vci am"><div class="vci-lbl">📦 Reste</div><div class="vci-val">'+last.restants+' u.</div></div>'
-        +'<div class="vci pu"><div class="vci-lbl">🔄 Commande</div><div class="vci-val">'+last.total_vendu+' u.</div></div>'
-        +'<div class="vci bl"><div class="vci-lbl">📊 Total après</div><div class="vci-val">'+last.stock_initial+' u.</div></div></div>'
+        +'<div class="vci ac"><div class="vci-lbl">💰 CA</div><div class="vci-val">'+fmt(last.total_fcfa)+' F</div></div>'
+        +'<div class="vci am"><div class="vci-lbl">📦 Restants</div><div class="vci-val">'+last.restants+' u.</div></div></div>'
         :'<div style="font-size:12px;color:var(--muted);text-align:center;padding:8px">Aucune journée</div>')
       +'<div style="display:flex;gap:6px;flex-wrap:wrap">'
-      +(last&&!isSig?'<button class="btn btn-purple btn-sm" onclick="openSig(\''+last.id+'\',\''+esc(last.date_label||last.date_journee)+'\','+last.total_vendu+','+comm+')">✍️ Signer</button>':'')
+      +(last&&last.locked&&!isVal?'<button class="btn btn-purple btn-sm" onclick="openValPin(\''+last.id+'\',\''+esc(last.date_label||last.date_journee)+'\','+last.total_vendu+')">🔐 Valider</button>':'')
       +(m.role==='vendeur'?'<button class="btn btn-sm" style="background:rgba(139,92,246,.08);color:var(--purple);border:1px solid rgba(139,92,246,.25)" onclick="askProm(\''+m.id+'\',\''+esc(m.nom)+'\')" >👑 Promouvoir</button>':'<span class="badge b-sign" style="padding:5px 9px">🏷️ Leader</span>')
       +'<button class="btn btn-sm" style="background:rgba(239,68,68,.08);color:var(--red);border:1px solid rgba(239,68,68,.2)" onclick="askDelF(\''+m.id+'\',\''+esc(m.nom)+'\')" >🚫 Désactiver</button></div></div>';
   }).join('');
+}
+// ════ RÉAPPROVISIONNEMENT ════
+function buildReappro(){
+  const el=document.getElementById('reapproTable');if(!el)return;
+  const today=new Date().toISOString().split('T')[0];
+  const dateLabel=new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  // journées du jour uniquement
+  const byV={};S.team.forEach(m=>{byV[m.id]={m,j:null};});
+  S.teamJ.forEach(j=>{if(j.date_journee===today&&byV[j.vendeur_id])byV[j.vendeur_id].j=j;});
+  const rows=Object.values(byV);
+  if(!rows.length){el.innerHTML='<div style="font-size:12px;color:var(--muted);text-align:center;padding:10px">Aucune journée enregistrée aujourd\'hui</div>';return;}
+  const tbody=rows.map(({m,j})=>{
+    const vid=m.id;
+    const stock=j?j.stock_initial:0,vendu=j?j.total_vendu:0,reste=stock-vendu;
+    const vers=vendu*600,comm=vendu*50;
+    const isVal=j&&j.valide;
+    const sigCell=isVal
+      ?'<span class="ra-done">✅ Validé</span>'
+      :j&&j.locked
+        ?'<button class="ra-pin" onclick="openValPin(\''+j.id+'\',\''+esc(j.date_label||j.date_journee)+'\','+vendu+')">🔑 PIN</button>'
+        :'<span style="color:var(--muted);font-size:11px">—</span>';
+    return '<tr id="ra-row-'+vid+'">'
+      +'<td><strong>'+esc(m.nom)+'</strong></td>'
+      +'<td class="pt-mono" style="color:var(--muted)">'+stock+'</td>'
+      +'<td class="pt-mono" style="color:var(--blue)">'+vendu+'</td>'
+      +'<td class="pt-mono" style="color:var(--red)">'+fmt(vers)+' F</td>'
+      +'<td class="pt-mono" style="color:var(--muted)">'+reste+'</td>'
+      +'<td><input class="ra-inp" type="number" min="0" value="0" id="ra-cmd-'+vid+'" data-reste="'+reste+'" data-vid="'+vid+'" oninput="raRecalc(this)"></td>'
+      +'<td class="pt-mono" style="color:var(--purple)" id="ra-qt-'+vid+'">'+reste+'</td>'
+      +'<td class="pt-mono" style="color:var(--accent)">'+fmt(comm)+' F</td>'
+      +'<td>'+sigCell+'</td>'
+      +'</tr>';
+  }).join('');
+  el.innerHTML='<div class="ra-date">📅 '+esc(dateLabel)+'</div>'
+    +'<div class="ra-wrap"><table>'
+    +'<thead><tr><th>Vendeur</th><th>Stock</th><th style="color:var(--blue)">Vendus</th><th style="color:var(--red)">Versement</th><th>Reste</th><th>Commande</th><th style="color:var(--purple)">Qté Totale</th><th style="color:var(--accent)">Commission</th><th>Signature</th></tr></thead>'
+    +'<tbody>'+tbody+'</tbody></table></div>'
+    +'<div style="display:flex;gap:8px;margin-top:6px">'
+    +'<button class="btn btn-wa" style="flex:1" onclick="sendReapproWA()">📱 Envoyer au manager</button>'
+    +'<button class="btn btn-green" style="flex:1" onclick="submitReappro()">☁️ Soumettre</button>'
+    +'</div>';
+}
+async function submitReappro(){
+  const today=new Date().toISOString().split('T')[0];
+  const byV={};S.team.forEach(m=>{byV[m.id]={m,j:null};});
+  S.teamJ.forEach(j=>{if(j.date_journee===today&&byV[j.vendeur_id])byV[j.vendeur_id].j=j;});
+  const rows=Object.values(byV);
+  if(!rows.length){toast('Aucune donnée aujourd\'hui','info');return;}
+  const data=rows.map(({m,j})=>{
+    const stock=j?j.stock_initial:0,vendu=j?j.total_vendu:0,reste=stock-vendu;
+    const cmd=parseInt(document.getElementById('ra-cmd-'+m.id)?.value)||0;
+    return{vendeur_id:m.id,nom:m.nom,stock,vendu,reste,commande:cmd,qt_totale:reste+cmd,versement:vendu*600,commission:vendu*50};
+  });
+  showLoad('Soumission…');
+  const{error}=await sb.from('rapports_equipe').insert({
+    leader_id:S.profile.id,date:today,
+    data:JSON.stringify(data),
+    created_at:new Date().toISOString()
+  });
+  hideLoad();
+  if(error){toast('❌ '+error.message,'error');return;}
+  toast('✅ Rapport soumis au manager !','success');
+}
+function raRecalc(inp){
+  const vid=inp.dataset.vid,reste=parseInt(inp.dataset.reste)||0,cmd=parseInt(inp.value)||0;
+  const qt=document.getElementById('ra-qt-'+vid);if(qt)qt.textContent=reste+cmd;
+}
+function sendReapproWA(){
+  const today=new Date().toISOString().split('T')[0];
+  const dateLabel=new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  const byV={};S.team.forEach(m=>{byV[m.id]={m,j:null};});
+  S.teamJ.forEach(j=>{if(j.date_journee===today&&byV[j.vendeur_id])byV[j.vendeur_id].j=j;});
+  const rows=Object.values(byV);
+  if(!rows.length){toast('Aucune donnée aujourd\'hui','info');return;}
+  let txt='📋 *Tableau de réapprovisionnement*\n📅 '+dateLabel+'\n👤 Leader : '+(S.profile?.nom||'—')+'\n\n━━━━━━━━━━━━━━━━━━\n';
+  rows.forEach(({m,j})=>{
+    const stock=j?j.stock_initial:0,vendu=j?j.total_vendu:0,reste=stock-vendu;
+    const cmd=parseInt(document.getElementById('ra-cmd-'+m.id)?.value)||0;
+    const qt=reste+cmd,comm=vendu*50,vers=vendu*600;
+    txt+='👤 *'+m.nom+'*\n'
+      +'  Stock : '+stock+' · Vendus : '+vendu+' · Reste : '+reste+'\n'
+      +'  Commande : '+cmd+' · Qté totale : '+qt+'\n'
+      +'  Versement : '+fmt(vers)+' F · Commission : '+fmt(comm)+' F\n\n';
+  });
+  txt+='━━━━━━━━━━━━━━━━━━';
+  window.open('https://wa.me/?text='+encodeURIComponent(txt),'_blank');
+}
+function sendPerfWA(){
+  const byV={};S.team.forEach(m=>{byV[m.id]={m,j:[]};});S.teamJ.forEach(j=>{if(byV[j.vendeur_id])byV[j.vendeur_id].j.push(j);});
+  const rows=Object.values(byV);if(!rows.length){toast('Aucune donnée','info');return;}
+  const ts=new Date().toLocaleDateString('fr-FR')+' à '+new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+  let txt='📊 *Performances équipe — '+esc(S.profile?.nom||'Leader')+'*\n📅 '+ts+'\n\n━━━━━━━━━━━━━━━━━━\n';
+  let tV=0,tCA=0,tC=0;
+  rows.forEach(({m,j})=>{
+    const last=j[0];if(!last)return;
+    tV+=last.total_vendu||0;tCA+=last.total_fcfa||0;tC+=last.valide?last.commission_vendeur||0:0;
+    txt+='👤 *'+m.nom+'* (@'+m.identifiant+')\n'
+      +'  📦 Stock : '+last.stock_initial+' · Vendus : '+last.total_vendu+' · Restants : '+last.restants+'\n'
+      +'  💰 CA : '+fmt(last.total_fcfa)+' F · Comm. : '+(last.valide?fmt(last.commission_vendeur)+' F ✅':'— ⏳')+'\n\n';
+  });
+  txt+='━━━━━━━━━━━━━━━━━━\n🔢 Total : '+tV+' u. · '+fmt(tCA)+' F · Comm. : '+fmt(tC)+' F';
+  window.open('https://wa.me/?text='+encodeURIComponent(txt),'_blank');
 }
 
 // ════ RETRAITS ════
@@ -1179,35 +1294,33 @@ async function doRetrait(){
   S.retraits.unshift(data);closeMod('mRet');renderEquipe();toast('✅ Retrait de '+fmt(mt)+' F enregistré','success');
 }
 
-// ════ SIGNATURE ════
-let _sCtx,_sDraw=false,_sHas=false;
-function openSig(id,dl,tv,comm){
-  S.sigJId=id;document.getElementById('sigInfo').innerHTML='📅 <b>'+dl+'</b><br>Unités : '+tv+' · Commission : <b style="color:var(--purple)">'+fmt(comm)+' F</b>';
-  const c=document.getElementById('sigCanvas'),w=document.getElementById('sigWrap');
-  c.width=w.clientWidth||320;c.height=150;
-  _sCtx=c.getContext('2d');_sCtx.strokeStyle='#0f172a';_sCtx.lineWidth=2.5;_sCtx.lineCap='round';_sCtx.lineJoin='round';
-  _sHas=false;w.classList.remove('has-sig');_sCtx.fillStyle='#f8fafc';_sCtx.fillRect(0,0,c.width,c.height);
-  const pos=(e,el)=>{const r=el.getBoundingClientRect(),s=e.touches?e.touches[0]:e;return{x:s.clientX-r.left,y:s.clientY-r.top};};
-  c.ontouchstart=e=>{e.preventDefault();_sDraw=true;const p=pos(e,c);_sCtx.beginPath();_sCtx.moveTo(p.x,p.y);};
-  c.ontouchmove=e=>{e.preventDefault();if(!_sDraw)return;const p=pos(e,c);_sCtx.lineTo(p.x,p.y);_sCtx.stroke();_sHas=true;w.classList.add('has-sig');};
-  c.ontouchend=()=>{_sDraw=false;};
-  c.onmousedown=e=>{_sDraw=true;const p=pos(e,c);_sCtx.beginPath();_sCtx.moveTo(p.x,p.y);};
-  c.onmousemove=e=>{if(!_sDraw)return;const p=pos(e,c);_sCtx.lineTo(p.x,p.y);_sCtx.stroke();_sHas=true;w.classList.add('has-sig');};
-  c.onmouseup=()=>{_sDraw=false;};
-  openMod('mSig');
+// ════ VALIDATION PIN LEADER ════
+let valPinBuf='',valPinId=null;
+function openValPin(id,dl,tv){
+  valPinId=id;valPinBuf='';
+  document.getElementById('vpInfo').innerHTML='📅 <b>'+dl+'</b> · '+tv+' unités';
+  document.getElementById('vpErr').style.display='none';
+  renderVpDots();
+  openMod('mValPin');
 }
-function clearSig(){if(!_sCtx)return;const c=document.getElementById('sigCanvas');_sCtx.fillStyle='#f8fafc';_sCtx.fillRect(0,0,c.width,c.height);_sHas=false;document.getElementById('sigWrap').classList.remove('has-sig');}
-async function doSign(){
-  if(!_sHas){toast("⚠️ Signez d'abord",'error');return;}
-  showLoad('Enregistrement signature…');
-  const{error}=await sb.from('signatures').insert({journee_id:S.sigJId,leader_id:S.profile.id,signature_svg:document.getElementById('sigCanvas').toDataURL('image/png')});
+function vpK(k){if(valPinBuf.length>=4)return;valPinBuf+=k;renderVpDots();if(valPinBuf.length===4)setTimeout(doValPin,200);}
+function vpD(){valPinBuf=valPinBuf.slice(0,-1);renderVpDots();}
+function renderVpDots(){for(let i=0;i<4;i++)document.getElementById('vp'+i).classList.toggle('on',i<valPinBuf.length);}
+async function doValPin(){
+  const err=document.getElementById('vpErr');err.style.display='none';
+  const h=await hashPin(valPinBuf);
+  if(h!==S.profile.pin_hash){err.textContent='❌ PIN incorrect';err.style.display='block';valPinBuf='';renderVpDots();return;}
+  showLoad('Validation…');
+  const{error}=await sb.from('journees').update({valide:true}).eq('id',valPinId);
   hideLoad();if(error){toast('❌ '+error.message,'error');return;}
-  closeMod('mSig');await loadTeam();renderEquipe();toast('✍️ Rapport signé !','success');
+  const idx=S.teamJ.findIndex(j=>j.id===valPinId);if(idx>=0)S.teamJ[idx].valide=true;
+  closeMod('mValPin');valPinBuf='';
+  await loadTeam();renderEquipe();toast('✅ Rapport validé !','success');
 }
 
 // ════ RAPPORT WA ════
 function buildRpt(j,ts){
-  const p=j.prix_unitaire||PRICE,isF=j.commission_leader>0;
+  const p=j.prix_unitaire||PRICE;
   return '🧴 *'+(S.profile?.nom||'—')+' — Rapport journalier*\n📅 '+(j.date_label||j.date_journee)+(j.auto_cloture?' ⏰':'')+'\n\n'
     +'━━━━━━━━━━━━━━━━━━\n📦 *STOCK & VENTES*\n'
     +'• Stock initial  : '+j.stock_initial+' unités\n• Vendus         : '+j.total_vendu+' unités\n• Restants       : '+j.restants+' unités\n\n'
@@ -1215,8 +1328,7 @@ function buildRpt(j,ts){
     +'• 📲 Wave         : '+j.vendu_wave+' × '+fmt(p)+' F = '+fmt(j.vendu_wave*p)+' F\n'
     +'• 🟠 Orange Money : '+j.vendu_orange+' × '+fmt(p)+' F = '+fmt(j.vendu_orange*p)+' F\n\n'
     +'━━━━━━━━━━━━━━━━━━\n💰 *RÉPARTITION*\n'
-    +'• Total          : '+fmt(j.total_fcfa)+' F\n• Entreprise     : '+fmt(j.part_entreprise_nette)+' F\n• 💚 Ma part     : '+fmt(j.commission_vendeur)+' F (40%)'+(isF?'\n• 👑 Leader      : '+fmt(j.commission_leader)+' F':'')+'\n\n'
-    +'🏦 *CAISSE*\n• Attendues : '+fmt(j.vendu_cash*p)+' F\n• En main   : '+fmt(j.especes_en_main)+' F\n• Écart     : '+(j.ecart_caisse>=0?'+':'')+fmt(j.ecart_caisse)+' F '+(j.ecart_caisse===0?'✅':'⚠️')+'\n'
+    +'• Total          : '+fmt(j.total_fcfa)+' F\n• 💚 Ma part     : '+fmt(j.commission_vendeur)+' F (40%)\n\n'
     +'━━━━━━━━━━━━━━━━━━\n'+(ts?'⏱️ *Envoyé le :* '+ts:"⏳ _Heure fixée à l'envoi_");
 }
 function openRptModal(id,idx){
@@ -1294,7 +1406,7 @@ function buildBilanChart(sorted){
     var y=H-h;
     var dl=(j.date_label||j.date_journee||'').replace(/['"><&]/g,'');
     return '<rect x="'+x+'" y="'+y+'" width="'+barW+'" height="'+h+'" rx="3"'
-      +' fill="var(--accent)" style="cursor:pointer;opacity:.85;transition:opacity .12s"'
+      +' style="fill:var(--accent);cursor:pointer;opacity:.85;transition:opacity .12s"'
       +' onmouseenter="_btShow('+v+',&quot;'+dl+'&quot;)" onmouseleave="_btHide()"/>';
   }).join('');
   return '<div style="background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:14px;box-shadow:var(--sh)">'
@@ -1309,21 +1421,20 @@ function calcBilan(){
   actives.sort((a,b)=>new Date(b.date_journee)-new Date(a.date_journee));
   if(_daysN>0)actives=actives.slice(0,_daysN);
   if(!actives.length){toast('Aucune journée avec activité','info');document.getElementById('bilanResult').style.display='none';return;}
-  let tV=0,tCA=0,tMe=0,tL=0,tEnt=0,tEc=0;
-  actives.forEach(j=>{tV+=j.total_vendu||0;tCA+=j.total_fcfa||0;tMe+=j.commission_vendeur||0;tL+=j.commission_leader||0;tEnt+=j.part_entreprise_nette||0;tEc+=j.ecart_caisse||0;});
+  let tV=0,tCA=0,tMe=0,tL=0,tEnt=0;
+  actives.forEach(j=>{tV+=j.total_vendu||0;tCA+=j.total_fcfa||0;tMe+=j.commission_vendeur||0;tL+=j.commission_leader||0;tEnt+=j.part_entreprise_nette||0;});
   const label=_daysN?actives.length+' journée(s) avec activité':'Toutes les journées';
   document.getElementById('bilanKPI').innerHTML=
     '<div class="kpi dark wide"><div class="kpi-val">'+fmt(tMe)+' F</div><div class="kpi-lbl">💚 Mes gains — '+label+'</div></div>'
     +'<div class="kpi"><div class="kpi-val" style="color:var(--blue)">'+tV+'</div><div class="kpi-lbl">Unités vendues</div></div>'
     +'<div class="kpi"><div class="kpi-val" style="color:var(--ink)">'+fmt(tCA)+' F</div><div class="kpi-lbl">Total collecté</div></div>'
-    +'<div class="kpi"><div class="kpi-val" style="color:var(--red)">'+fmt(tEnt)+' F</div><div class="kpi-lbl">Part entreprise</div></div>'
-    +'<div class="kpi"><div class="kpi-val" style="color:'+(tEc<0?'var(--red)':'var(--accent)')+'">'+(tEc>=0?'+':'')+fmt(tEc)+' F</div><div class="kpi-lbl">Écarts caisse</div></div>';
+    +'<div class="kpi"><div class="kpi-val" style="color:var(--red)">'+fmt(tEnt)+' F</div><div class="kpi-lbl">Part entreprise</div></div>';
   const sorted=[...actives].sort((a,b)=>new Date(a.date_journee)-new Date(b.date_journee));
   document.getElementById("bilanChart").innerHTML=buildBilanChart(sorted);
   document.getElementById('bilanDays').innerHTML=sorted.map(j=>'<div class="hentry" style="margin-bottom:7px;padding:10px 12px"><div class="hrow"><div style="font-size:11px;font-weight:700;color:var(--muted);flex:1">'+(j.date_label||j.date_journee)+'</div><div style="display:flex;gap:8px;align-items:center;flex-shrink:0"><span style="font-family:\'JetBrains Mono\',monospace;font-size:11px;color:var(--blue)">'+j.total_vendu+' u.</span><span style="font-family:\'JetBrains Mono\',monospace;font-size:13px;font-weight:800;color:var(--accent)">'+fmt(j.commission_vendeur)+' F</span></div></div></div>').join('');
   document.getElementById('bilanResult').style.display='block';
   document.getElementById('bilanResult').scrollIntoView({behavior:'smooth',block:'start'});
-  window._bilan={actives,tV,tCA,tMe,tL,tEnt,tEc,label,n:actives.length};
+  window._bilan={actives,tV,tCA,tMe,tL,tEnt,label,n:actives.length};
 }
 function sendBilanWA(){
   const b=window._bilan;if(!b){toast("Calculez d'abord",'error');return;}
@@ -1371,7 +1482,7 @@ function exportBackup(){
 
 // ════ PERSISTANCE LOCALE ════
 function saveLocal(){
-  if(S.started)localStorage.setItem('bf_cur',JSON.stringify({started:S.started,stock:S.stock,N:S.N,phys:S.phys,openTs:S.openTs,userId:S.profile?.id}));
+  if(S.started)localStorage.setItem('bf_cur',JSON.stringify({started:S.started,stock:S.stock,N:S.N,openTs:S.openTs,userId:S.profile?.id}));
   else localStorage.removeItem('bf_cur');
 }
 function restoreCurrent(){
@@ -1379,8 +1490,8 @@ function restoreCurrent(){
     const cur=JSON.parse(localStorage.getItem('bf_cur'));
     if(cur&&cur.started&&cur.userId===S.profile?.id){
       S.started=cur.started;S.stock=cur.stock||0;S.N=cur.N||{cash:0,wave:0,orange:0};
-      S.phys=cur.phys||0;S.openTs=cur.dayOpenTs||Date.now();
-      document.getElementById('stockQty').value=S.stock;document.getElementById('physCash').value=S.phys||'';
+      S.openTs=cur.dayOpenTs||Date.now();
+      document.getElementById('stockQty').value=S.stock;
       document.getElementById('btnCorrect').style.display='flex';
       startAutoWatch();startSince();upd();toast('↩️ Journée en cours restaurée','info');
     }
