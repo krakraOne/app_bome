@@ -1,0 +1,1045 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Bome François · Manager</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<!-- Supabase chargé dynamiquement en JS pour compatibilité document.write() -->
+<style>
+:root{
+  --accent:#10b981;--a2:#059669;--red:#ef4444;--amber:#f59e0b;
+  --purple:#8b5cf6;--blue:#3b82f6;--ink:#0f172a;--ink2:#334155;
+  --muted:#64748b;--bg:#f0f4f8;--card:#fff;--border:#e2e8f0;
+  --nav:62px;--r:14px;
+  --sh:0 1px 3px rgba(15,23,42,.07),0 4px 16px rgba(15,23,42,.06);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;font-family:'Syne',sans-serif;background:var(--bg);color:var(--ink)}
+body{display:flex;flex-direction:column;padding-top:env(safe-area-inset-top)}
+
+/* ── Loader ── */
+#loader{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;z-index:9999;transition:opacity .4s}
+#loader.out{opacity:0;pointer-events:none}
+.ld-logo{width:56px;height:56px;border-radius:16px;background:linear-gradient(135deg,var(--accent),var(--a2));display:flex;align-items:center;justify-content:center;font-size:26px;animation:pulse 1.5s ease-in-out infinite}
+@keyframes pulse{0%,100%{transform:scale(1);box-shadow:0 0 0 0 rgba(16,185,129,.4)}50%{transform:scale(1.05);box-shadow:0 0 0 12px rgba(16,185,129,0)}}
+.ld-bar{width:120px;height:3px;background:var(--border);border-radius:3px;overflow:hidden}
+.ld-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--blue));border-radius:3px;animation:fill 1.8s ease-in-out infinite}
+@keyframes fill{0%{width:0;margin-left:0}50%{width:100%}100%{width:0;margin-left:100%}}
+.ld-txt{font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.1em;text-transform:uppercase}
+
+/* ── Header ── */
+.hdr{background:var(--card);border-bottom:1px solid var(--border);padding:10px 15px;flex-shrink:0;box-shadow:var(--sh)}
+.hdr-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.hdr-brand{display:flex;align-items:center;gap:10px}
+.hdr-logo{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--a2));display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.hdr-title{font-size:.9rem;font-weight:800;line-height:1.2}
+.hdr-sub{font-size:10px;color:var(--muted);font-weight:600}
+.btn-logout{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);border-radius:9px;padding:6px 12px;font-family:'Syne',sans-serif;font-size:11px;font-weight:700;color:var(--red);cursor:pointer;white-space:nowrap}
+.btn-logout:active{transform:scale(.95)}
+
+/* Period selector */
+.period-row{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none}
+.period-row::-webkit-scrollbar{display:none}
+.pbtn{border:1px solid var(--border);background:var(--bg);border-radius:20px;padding:5px 13px;font-family:'Syne',sans-serif;font-size:11px;font-weight:700;color:var(--muted);cursor:pointer;white-space:nowrap;transition:all .15s}
+.pbtn.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.pbtn:active{transform:scale(.95)}
+
+/* ── Main scroll ── */
+#main{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:14px 14px calc(var(--nav) + env(safe-area-inset-bottom) + 14px)}
+#main::-webkit-scrollbar{display:none}
+
+/* ── Tab panels ── */
+.tab-panel{display:none}
+.tab-panel.on{display:block}
+
+/* ── Section label ── */
+.slabel{font-size:9px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);margin:18px 0 10px;display:flex;align-items:center;gap:8px}
+.slabel::after{content:'';flex:1;height:1px;background:var(--border)}
+
+/* ── Cards ── */
+.card{background:var(--card);border-radius:var(--r);padding:15px;margin-bottom:10px;box-shadow:var(--sh);border:1px solid var(--border)}
+.card-sm{padding:12px}
+
+/* ── KPI Grid ── */
+.kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+.kpi-grid.trio{grid-template-columns:1fr 1fr 1fr}
+.kpi{background:var(--card);border-radius:var(--r);padding:14px;box-shadow:var(--sh);border:1px solid var(--border);position:relative;overflow:hidden;animation:fadeUp .35s ease both}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.kpi-stripe{position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:3px 0 0 3px}
+.kpi-ico{font-size:18px;margin-bottom:6px}
+.kpi-val{font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:700;color:var(--ink);line-height:1.2;word-break:break-all}
+.kpi-lbl{font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-top:4px}
+
+/* Hero KPI (profit) */
+.kpi-hero{grid-column:1/-1;background:linear-gradient(135deg,var(--accent),var(--a2));border-color:transparent;animation:fadeUp .2s ease both}
+.kpi-hero .kpi-val{color:#fff;font-size:22px}
+.kpi-hero .kpi-lbl{color:rgba(255,255,255,.8)}
+.kpi-hero .kpi-ico{font-size:24px}
+
+/* ── Registre ── */
+.reg-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)}
+.reg-row:last-child{border-bottom:none}
+.reg-lbl{font-size:12px;color:var(--ink2);display:flex;align-items:center;gap:7px}
+.reg-val{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700}
+.pos{color:var(--accent)}.neg{color:var(--red)}.neu{color:var(--ink)}
+.reg-total{background:linear-gradient(135deg,rgba(16,185,129,.07),rgba(59,130,246,.04));border-radius:10px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;margin-top:8px;border:1px solid rgba(16,185,129,.2)}
+
+/* ── Sub-tabs ── */
+.stabs{display:flex;background:var(--bg);border-radius:10px;padding:3px;margin-bottom:12px;border:1px solid var(--border)}
+.stab{flex:1;text-align:center;padding:8px 4px;border-radius:8px;font-size:11px;font-weight:700;color:var(--muted);cursor:pointer;transition:all .15s;position:relative}
+.stab.on{background:var(--card);color:var(--ink);box-shadow:0 1px 4px rgba(0,0,0,.08)}
+.stab-badge{position:absolute;top:4px;right:6px;background:var(--red);color:#fff;border-radius:10px;font-size:9px;font-weight:700;padding:1px 5px;line-height:1.4}
+
+/* ── Retrait card ── */
+.ret-card{background:var(--card);border-radius:var(--r);padding:14px;margin-bottom:10px;box-shadow:var(--sh);border:1px solid var(--border);animation:fadeUp .3s ease both}
+.ret-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px}
+.ret-name{font-size:14px;font-weight:800}
+.ret-date{font-size:10px;color:var(--muted);margin-top:2px}
+.ret-amount{font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:700;color:var(--amber)}
+.ret-note{font-size:11px;color:var(--muted);margin-bottom:10px;font-style:italic}
+.ret-actions{display:flex;gap:8px}
+.btn-val{flex:1;background:linear-gradient(135deg,var(--accent),var(--a2));border:none;border-radius:9px;padding:10px;font-family:'Syne',sans-serif;font-size:12px;font-weight:700;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px}
+.btn-ref{flex:1;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);border-radius:9px;padding:10px;font-family:'Syne',sans-serif;font-size:12px;font-weight:700;color:var(--red);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px}
+.btn-val:active,.btn-ref:active{transform:scale(.95)}
+.status-badge{display:inline-flex;align-items:center;gap:4px;border-radius:20px;padding:3px 9px;font-size:10px;font-weight:700}
+.sb-att{background:rgba(245,158,11,.12);color:var(--amber);border:1px solid rgba(245,158,11,.3)}
+.sb-val{background:rgba(16,185,129,.1);color:var(--accent);border:1px solid rgba(16,185,129,.2)}
+.sb-ref{background:rgba(239,68,68,.08);color:var(--red);border:1px solid rgba(239,68,68,.2)}
+
+/* ── Leader card ── */
+.leader-card{background:var(--card);border-radius:var(--r);padding:14px;margin-bottom:10px;box-shadow:var(--sh);border:1px solid var(--border);animation:fadeUp .3s ease both}
+.lc-top{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.lc-avatar{width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,var(--purple),#7c3aed);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;color:#fff;flex-shrink:0}
+.lc-name{font-size:14px;font-weight:800}
+.lc-ident{font-size:10px;color:var(--muted);margin-top:1px}
+.perf-badge{margin-left:auto;display:inline-flex;align-items:center;gap:3px;border-radius:20px;padding:4px 9px;font-size:10px;font-weight:700}
+.pb-fort{background:rgba(16,185,129,.1);color:var(--accent);border:1px solid rgba(16,185,129,.2)}
+.pb-moyen{background:rgba(245,158,11,.1);color:var(--amber);border:1px solid rgba(245,158,11,.25)}
+.pb-faible{background:rgba(239,68,68,.08);color:var(--red);border:1px solid rgba(239,68,68,.2)}
+.lc-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.lc-stat{background:var(--bg);border-radius:9px;padding:8px 10px;border:1px solid var(--border)}
+.lc-stat-val{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;color:var(--ink)}
+.lc-stat-lbl{font-size:8px;font-weight:700;text-transform:uppercase;color:var(--muted);margin-top:2px}
+
+/* ── Table ── */
+.tbl-wrap{overflow-x:auto;border-radius:var(--r);border:1px solid var(--border);background:var(--card);box-shadow:var(--sh)}
+table{width:100%;border-collapse:collapse;min-width:540px}
+thead th{padding:9px 12px;font-size:8px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);text-align:left;border-bottom:1px solid var(--border);background:var(--bg);white-space:nowrap}
+tbody td{padding:10px 12px;font-size:11px;color:var(--ink2);border-bottom:1px solid rgba(15,23,42,.04);white-space:nowrap}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover td{background:rgba(16,185,129,.03)}
+.mono{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600}
+
+/* ── Classement ── */
+.rank-card{display:flex;align-items:center;gap:11px;padding:12px 14px;background:var(--card);border-radius:var(--r);margin-bottom:8px;box-shadow:var(--sh);border:1px solid var(--border);animation:fadeUp .3s ease both}
+.rank-num{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;flex-shrink:0}
+.rn-1{background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff}
+.rn-2{background:linear-gradient(135deg,#94a3b8,#64748b);color:#fff}
+.rn-3{background:linear-gradient(135deg,#b45309,#92400e);color:#fff}
+.rn-x{background:var(--bg);color:var(--muted);border:1px solid var(--border)}
+.rank-info{flex:1;min-width:0}
+.rank-name{font-size:13px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rank-sub{font-size:10px;color:var(--muted);margin-top:1px}
+.rank-val{font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700;color:var(--accent);flex-shrink:0}
+
+/* ── Alertes ── */
+.alert-card{display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border-radius:var(--r);margin-bottom:8px;animation:fadeUp .3s ease both}
+.al-warn{background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.25)}
+.al-info{background:rgba(59,130,246,.07);border:1px solid rgba(59,130,246,.2)}
+.al-ok{background:rgba(16,185,129,.07);border:1px solid rgba(16,185,129,.2)}
+.al-ico{font-size:18px;flex-shrink:0;margin-top:1px}
+.al-msg{font-size:12px;font-weight:600;color:var(--ink);line-height:1.5}
+
+/* ── Filters (historique) ── */
+.filters{display:flex;gap:8px;margin-bottom:12px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.filters::-webkit-scrollbar{display:none}
+.fsel{flex-shrink:0;border:1px solid var(--border);background:var(--card);border-radius:9px;padding:7px 10px;font-family:'Syne',sans-serif;font-size:11px;font-weight:600;color:var(--ink2);cursor:pointer;outline:none}
+
+/* ── Modal ── */
+.modal-bg{position:fixed;inset:0;background:rgba(15,23,42,.5);z-index:8000;display:flex;align-items:flex-end;justify-content:center;opacity:0;pointer-events:none;transition:opacity .25s}
+.modal-bg.open{opacity:1;pointer-events:all}
+.modal{background:var(--card);border-radius:20px 20px 0 0;padding:24px 20px calc(24px + env(safe-area-inset-bottom));width:100%;max-width:480px;transform:translateY(40px);transition:transform .25s}
+.modal-bg.open .modal{transform:translateY(0)}
+.modal-title{font-size:16px;font-weight:800;margin-bottom:8px}
+.modal-msg{font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:20px}
+.modal-actions{display:flex;gap:10px}
+.mbtn{flex:1;padding:13px;border-radius:12px;font-family:'Syne',sans-serif;font-size:13px;font-weight:700;cursor:pointer;border:none;text-align:center}
+.mbtn-cancel{background:var(--bg);color:var(--muted);border:1px solid var(--border)}
+.mbtn-confirm-ok{background:linear-gradient(135deg,var(--accent),var(--a2));color:#fff}
+.mbtn-confirm-red{background:var(--red);color:#fff}
+.mbtn:active{transform:scale(.95)}
+
+/* ── Toast ── */
+.toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(20px);opacity:0;padding:10px 20px;border-radius:30px;z-index:9000;font-weight:700;font-size:12px;transition:all .25s;pointer-events:none;white-space:nowrap}
+.toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+.toast.success{background:var(--accent);color:#fff}
+.toast.error{background:var(--red);color:#fff}
+.toast.info{background:var(--ink);color:#fff}
+.toast.warn{background:var(--amber);color:#fff}
+
+/* ── Bottom nav ── */
+nav{position:fixed;bottom:0;left:0;right:0;height:calc(var(--nav) + env(safe-area-inset-bottom));padding-bottom:env(safe-area-inset-bottom);background:var(--card);border-top:1px solid var(--border);display:flex;box-shadow:0 -2px 12px rgba(15,23,42,.07);z-index:100}
+.ni{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 2px 4px;cursor:pointer;position:relative}
+.ni-ico{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;transition:background .15s}
+.ni-lbl{font-size:7px;font-weight:700;text-transform:uppercase;color:var(--muted);letter-spacing:.04em}
+.ni.on .ni-ico{background:rgba(16,185,129,.12)}
+.ni.on .ni-lbl{color:var(--accent)}
+.ni-dot{position:absolute;top:6px;right:calc(50% - 22px);width:7px;height:7px;background:var(--red);border-radius:50%;border:2px solid var(--card)}
+
+/* ── Empty state ── */
+.empty{text-align:center;padding:40px 20px;color:var(--muted)}
+.empty-ico{font-size:36px;margin-bottom:8px}
+.empty-txt{font-size:13px;font-weight:600}
+
+/* ── Pagination ── */
+.pagination{display:flex;gap:8px;align-items:center;justify-content:center;margin-top:14px;padding-top:12px;border-top:1px solid var(--border)}
+.pg-btn{padding:7px 14px;border:1px solid var(--border);border-radius:9px;background:var(--card);font-family:'Syne',sans-serif;font-size:11px;font-weight:700;color:var(--ink2);cursor:pointer}
+.pg-btn:disabled{opacity:.4;cursor:default}
+.pg-btn:not(:disabled):active{transform:scale(.95)}
+.pg-info{font-size:11px;color:var(--muted);font-weight:600}
+</style>
+</head>
+<body>
+
+<!-- ══ LOADER ══ -->
+<div id="loader">
+  <div class="ld-logo">🧴</div>
+  <div class="ld-bar"><div class="ld-fill"></div></div>
+  <div class="ld-txt">Chargement du dashboard…</div>
+</div>
+
+<!-- ══ HEADER ══ -->
+<header class="hdr" id="hdr" style="display:none">
+  <div class="hdr-top">
+    <div class="hdr-brand">
+      <div class="hdr-logo">🧴</div>
+      <div>
+        <div class="hdr-title">Bome <span style="color:var(--accent)">François</span></div>
+        <div class="hdr-sub" id="hdrSub">Dashboard Manager</div>
+      </div>
+    </div>
+    <button class="btn-logout" onclick="doLogout()">← Quitter</button>
+  </div>
+  <div class="period-row">
+    <button class="pbtn" data-p="today" onclick="setPeriod('today',this)">Aujourd'hui</button>
+    <button class="pbtn on" data-p="7" onclick="setPeriod('7',this)">7 jours</button>
+    <button class="pbtn" data-p="30" onclick="setPeriod('30',this)">30 jours</button>
+    <button class="pbtn" data-p="all" onclick="setPeriod('all',this)">Tout</button>
+  </div>
+</header>
+
+<!-- ══ MAIN ══ -->
+<main id="main" style="display:none">
+
+  <!-- ── TAB : VUE FINANCIÈRE ── -->
+  <div class="tab-panel on" id="tab-vue">
+    <div class="slabel">💰 Profit net réel</div>
+    <div class="kpi-grid"><div class="kpi kpi-hero" id="kpiProfit">
+      <div class="kpi-ico">💰</div>
+      <div class="kpi-val" id="vProfit">—</div>
+      <div class="kpi-lbl">Profit net réel (entreprise après commissions leaders)</div>
+    </div></div>
+
+    <div class="slabel">📊 Vue globale</div>
+    <div class="kpi-grid">
+      <div class="kpi"><div class="kpi-stripe" style="background:var(--blue)"></div><div class="kpi-ico">💵</div><div class="kpi-val" id="vCA">—</div><div class="kpi-lbl">CA total</div></div>
+      <div class="kpi"><div class="kpi-stripe" style="background:var(--accent)"></div><div class="kpi-ico">🏢</div><div class="kpi-val" id="vEnt">—</div><div class="kpi-lbl">Part entreprise</div></div>
+      <div class="kpi"><div class="kpi-stripe" style="background:var(--purple)"></div><div class="kpi-ico">🧑‍💼</div><div class="kpi-val" id="vVend">—</div><div class="kpi-lbl">Part vendeurs</div></div>
+      <div class="kpi"><div class="kpi-stripe" style="background:var(--amber)"></div><div class="kpi-ico">👑</div><div class="kpi-val" id="vLdr">—</div><div class="kpi-lbl">Commissions leaders</div></div>
+      <div class="kpi"><div class="kpi-stripe" style="background:var(--red)"></div><div class="kpi-ico">📦</div><div class="kpi-val" id="vUnits">—</div><div class="kpi-lbl">Unités vendues</div></div>
+      <div class="kpi"><div class="kpi-stripe" style="background:var(--red)"></div><div class="kpi-ico">🩹</div><div class="kpi-val" id="vPertes">—</div><div class="kpi-lbl">Pertes totales</div></div>
+    </div>
+
+    <div class="slabel">📒 Registre financier</div>
+    <div class="card">
+      <div class="reg-row"><span class="reg-lbl">📥 CA total collecté</span><span class="reg-val pos" id="rCA">—</span></div>
+      <div class="reg-row"><span class="reg-lbl">🏢 Part entreprise brute</span><span class="reg-val pos" id="rEnt">—</span></div>
+      <div class="reg-row" style="padding-top:14px;border-top:2px dashed var(--border)"><span class="reg-lbl" style="font-weight:700;color:var(--ink)">📤 Sorties</span></div>
+      <div class="reg-row"><span class="reg-lbl">👑 Commissions leaders</span><span class="reg-val neg" id="rLdr">—</span></div>
+      <div class="reg-row"><span class="reg-lbl">💸 Retraits validés</span><span class="reg-val neg" id="rRet">—</span></div>
+      <div class="reg-total">
+        <span style="font-size:13px;font-weight:800">💰 Solde net entreprise</span>
+        <span class="reg-val" id="rSolde" style="font-size:16px">—</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── TAB : RETRAITS ── -->
+  <div class="tab-panel" id="tab-retraits">
+    <div class="stabs">
+      <div class="stab on" id="stab-att" onclick="switchStab('att')">En attente <span class="stab-badge" id="badgeAtt" style="display:none">0</span></div>
+      <div class="stab" id="stab-hist" onclick="switchStab('hist')">Historique</div>
+    </div>
+    <div id="ret-att-panel"></div>
+    <div id="ret-hist-panel" style="display:none"></div>
+  </div>
+
+  <!-- ── TAB : ÉQUIPE ── -->
+  <div class="tab-panel" id="tab-equipe">
+    <div class="slabel">👑 Leaders</div>
+    <div id="leadersPanel"></div>
+    <div class="slabel">🛒 Vendeurs</div>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Vendeur</th><th>Leader</th><th>Unités</th><th>CA</th><th>Commission</th><th>Statut</th></tr></thead>
+      <tbody id="vendeursTable"></tbody>
+    </table></div>
+  </div>
+
+  <!-- ── TAB : CLASSEMENTS ── -->
+  <div class="tab-panel" id="tab-top">
+    <div class="slabel">🥇 Top Leaders — CA équipe</div>
+    <div id="topLeaders"></div>
+    <div class="slabel">🥇 Top Vendeurs — Unités</div>
+    <div id="topVendeurs"></div>
+    <div class="slabel">🔻 Inactifs depuis +7 jours</div>
+    <div id="inactifs"></div>
+  </div>
+
+  <!-- ── TAB : ALERTES ── -->
+  <div class="tab-panel" id="tab-alertes">
+    <div class="slabel">⚠️ Alertes automatiques</div>
+    <div id="alertesPanel"></div>
+  </div>
+
+  <!-- ── TAB : HISTORIQUE ── -->
+  <div class="tab-panel" id="tab-histoire">
+    <div class="filters">
+      <select class="fsel" id="filtLeader" onchange="renderHistorique()"><option value="">Tous les leaders</option></select>
+      <select class="fsel" id="filtVendeur" onchange="renderHistorique()"><option value="">Tous les vendeurs</option></select>
+    </div>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Date</th><th>Vendeur</th><th>Leader</th><th>Unités</th><th>CA</th><th>Comm. vendeur</th><th>Comm. leader</th><th>Profit</th><th>Pertes</th></tr></thead>
+      <tbody id="histTable"></tbody>
+    </table></div>
+    <div class="pagination" id="pagination"></div>
+  </div>
+
+</main>
+
+<!-- ══ BOTTOM NAV ══ -->
+<nav id="nav" style="display:none">
+  <div class="ni on" id="nv-vue" onclick="goTab('vue')"><div class="ni-ico">📊</div><div class="ni-lbl">Vue</div></div>
+  <div class="ni" id="nv-retraits" onclick="goTab('retraits')"><div class="ni-ico">💸</div><div class="ni-lbl">Retraits</div><div class="ni-dot" id="retDot" style="display:none"></div></div>
+  <div class="ni" id="nv-equipe" onclick="goTab('equipe')"><div class="ni-ico">👥</div><div class="ni-lbl">Équipe</div></div>
+  <div class="ni" id="nv-top" onclick="goTab('top')"><div class="ni-ico">🏆</div><div class="ni-lbl">Top</div></div>
+  <div class="ni" id="nv-alertes" onclick="goTab('alertes')"><div class="ni-ico">⚠️</div><div class="ni-lbl">Alertes</div></div>
+  <div class="ni" id="nv-histoire" onclick="goTab('histoire')"><div class="ni-ico">📋</div><div class="ni-lbl">Historique</div></div>
+</nav>
+
+<!-- ══ MODAL ══ -->
+<div class="modal-bg" id="modalBg" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-title" id="modalTitle"></div>
+    <div class="modal-msg" id="modalMsg"></div>
+    <div class="modal-actions">
+      <button class="mbtn mbtn-cancel" onclick="closeModal()">Annuler</button>
+      <button class="mbtn" id="modalConfirm" onclick="">Confirmer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ TOAST ══ -->
+<div class="toast" id="toast"></div>
+
+<script>
+/* ══════════════════════════════════════════
+   SUPABASE INIT
+══════════════════════════════════════════ */
+const SUPABASE_URL = 'https://uwnrnioshqvdhsbfxrfa.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_c9gsrcgvvBpquVJ8fR7vyQ_DQqDEv_b';
+let _sb = null;
+function getSb() {
+  if (!_sb) {
+    if (typeof supabase === 'undefined') throw new Error('Supabase CDN non chargé');
+    _sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  }
+  return _sb;
+}
+
+/* ══════════════════════════════════════════
+   STATE
+══════════════════════════════════════════ */
+let SESSION = null;
+let PERIOD = '7';        // today | 7 | 30 | all
+let ACTIVE_TAB = 'vue';
+let ACTIVE_STAB = 'att';
+let HIST_PAGE = 0;
+const HIST_PER_PAGE = 50;
+
+const DATA = { users: [], journees: [], retraits: [] };
+
+/* ══════════════════════════════════════════
+   BOOT
+══════════════════════════════════════════ */
+let _booted = false;
+function setLdTxt(t) {
+  const el = document.querySelector('#loader .ld-txt');
+  if (el) el.textContent = t;
+}
+
+async function boot() {
+  if (_booted) return;
+  _booted = true;
+
+  setLdTxt('Vérification session…');
+
+  // Sécurité absolue : affiche l'app au bout de 8s quoi qu'il arrive
+  const safetyTimer = setTimeout(() => {
+    setLdTxt('');
+    showApp();
+    goTab('alertes');
+    document.getElementById('alertesPanel').innerHTML =
+      `<div class="alert-card al-warn"><div class="al-msg">⚠️ Délai dépassé — impossible de charger les données. Vérifiez votre connexion ou les politiques RLS Supabase.</div></div>`;
+  }, 8000);
+
+  // ── Vérification session ──
+  try {
+    const raw = JSON.parse(localStorage.getItem('bf_session') || 'null');
+    if (!raw?.profile) { clearTimeout(safetyTimer); redirect('Pas de session'); return; }
+    const p = raw.profile;
+    if (!['manager','admin'].includes((p.role||'').toLowerCase())) { clearTimeout(safetyTimer); redirect('Rôle interdit : ' + p.role); return; }
+    if (Date.now() - (p.ts||0) > 12*3600*1000) { clearTimeout(safetyTimer); redirect('Session expirée'); return; }
+    SESSION = p;
+  } catch(e) {
+    clearTimeout(safetyTimer);
+    redirect('Erreur session');
+    return;
+  }
+
+  document.getElementById('hdrSub').textContent = SESSION.nom + ' · Manager';
+  setLdTxt('Chargement des données…');
+
+  // ── Chargement données ──
+  try {
+    await loadData();
+    setLdTxt('Prêt !');
+  } catch(e) {
+    console.error('loadData error:', e);
+    setLdTxt('Données indisponibles — affichage partiel');
+  }
+
+  clearTimeout(safetyTimer);
+  showApp();
+  renderAll();
+}
+
+function redirect(reason) {
+  setLdTxt('Accès refusé' + (reason ? ' — ' + reason : '') + '…');
+  setTimeout(() => window.location.replace('index.html'), 1800);
+}
+
+function showApp() {
+  document.getElementById('loader').classList.add('out');
+  document.getElementById('hdr').style.display = '';
+  document.getElementById('main').style.display = '';
+  document.getElementById('nav').style.display = '';
+}
+
+/* ══════════════════════════════════════════
+   DATA LOADING
+══════════════════════════════════════════ */
+async function loadData() {
+  setLdTxt('Chargement des données…');
+  const client = getSb();
+  const [u, j, r] = await Promise.all([
+    client.from('users').select('*'),
+    client.from('journees').select('*').order('date_journee', { ascending: false }),
+    client.from('retraits').select('*').order('created_at', { ascending: false })
+  ]);
+  DATA.users    = u.data  || [];
+  DATA.journees = j.data  || [];
+  DATA.retraits = r.data  || [];
+  populateFilters();
+}
+
+async function refreshData() {
+  await loadData();
+  renderAll();
+}
+
+/* ══════════════════════════════════════════
+   PERIOD FILTER
+══════════════════════════════════════════ */
+function setPeriod(p, btn) {
+  PERIOD = p;
+  document.querySelectorAll('.pbtn').forEach(b => b.classList.toggle('on', b === btn));
+  renderAll();
+}
+
+function getFilteredJournees() {
+  const j = DATA.journees;
+  const now = new Date();
+  if (PERIOD === 'today') {
+    const today = toDateStr(now);
+    return j.filter(x => x.date_journee === today);
+  }
+  if (PERIOD === '7') {
+    const d = new Date(now - 7*86400000);
+    return j.filter(x => new Date(x.date_journee) >= d);
+  }
+  if (PERIOD === '30') {
+    const d = new Date(now - 30*86400000);
+    return j.filter(x => new Date(x.date_journee) >= d);
+  }
+  return j;
+}
+
+function getPreviousPeriodJournees() {
+  const now = new Date();
+  const days = PERIOD === 'today' ? 1 : PERIOD === '7' ? 7 : PERIOD === '30' ? 30 : null;
+  if (!days) return [];
+  const end   = new Date(now - days*86400000);
+  const start = new Date(now - 2*days*86400000);
+  return DATA.journees.filter(x => {
+    const d = new Date(x.date_journee);
+    return d >= start && d < end;
+  });
+}
+
+/* ══════════════════════════════════════════
+   HELPERS
+══════════════════════════════════════════ */
+function fmt(n) {
+  return Number(n||0).toLocaleString('fr-FR') + ' F';
+}
+function fmtN(n) {
+  return Number(n||0).toLocaleString('fr-FR');
+}
+function fmtDate(s) {
+  try {
+    return new Date(s).toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+  } catch { return s||'—'; }
+}
+function fmtDateShort(s) {
+  try {
+    return new Date(s).toLocaleDateString('fr-FR', { day:'numeric', month:'short', year:'2-digit' });
+  } catch { return s||'—'; }
+}
+function toDateStr(d) {
+  return d.toISOString().split('T')[0];
+}
+function sumCol(arr, col) {
+  return arr.reduce((a, x) => a + (Number(x[col])||0), 0);
+}
+function getUserById(id) {
+  return DATA.users.find(u => u.id === id);
+}
+
+/* ══════════════════════════════════════════
+   RENDER ALL
+══════════════════════════════════════════ */
+function renderAll() {
+  renderVue();
+  renderRetraits();
+  renderEquipe();
+  renderClassements();
+  renderAlertes();
+  renderHistorique();
+  updateRetDot();
+}
+
+/* ══════════════════════════════════════════
+   TAB : VUE FINANCIÈRE
+══════════════════════════════════════════ */
+function renderVue() {
+  const j  = getFilteredJournees();
+  const ca = sumCol(j, 'total_fcfa');
+  const ent= sumCol(j, 'part_entreprise_nette');
+  const vd = sumCol(j, 'commission_vendeur');
+  const lc = sumCol(j, 'commission_leader');
+  const un = sumCol(j, 'total_vendu');
+  const pt = sumCol(j, 'pertes');
+  const profit = ent - lc;
+
+  // Retraits validés (toutes périodes pour le registre)
+  const retVal = DATA.retraits.filter(r => r.statut === 'valide').reduce((a,r) => a + (Number(r.montant)||0), 0);
+  const solde  = profit - retVal;
+
+  document.getElementById('vProfit').textContent = fmt(profit);
+  document.getElementById('vCA').textContent     = fmt(ca);
+  document.getElementById('vEnt').textContent    = fmt(ent);
+  document.getElementById('vVend').textContent   = fmt(vd);
+  document.getElementById('vLdr').textContent    = fmt(lc);
+  document.getElementById('vUnits').textContent  = fmtN(un) + ' u.';
+  document.getElementById('vPertes').textContent = fmtN(pt);
+
+  document.getElementById('rCA').textContent    = fmt(ca);
+  document.getElementById('rEnt').textContent   = fmt(ent);
+  document.getElementById('rLdr').textContent   = '−' + fmt(lc);
+  document.getElementById('rRet').textContent   = '−' + fmt(retVal);
+  const soldeEl = document.getElementById('rSolde');
+  soldeEl.textContent = fmt(solde);
+  soldeEl.className   = 'reg-val ' + (solde >= 0 ? 'pos' : 'neg');
+}
+
+/* ══════════════════════════════════════════
+   TAB : RETRAITS
+══════════════════════════════════════════ */
+function renderRetraits() {
+  const att  = DATA.retraits.filter(r => r.statut === 'en_attente');
+  const hist = DATA.retraits.filter(r => r.statut !== 'en_attente');
+
+  // Badge
+  const badgeEl = document.getElementById('badgeAtt');
+  badgeEl.textContent = att.length;
+  badgeEl.style.display = att.length > 0 ? '' : 'none';
+
+  // En attente
+  const attEl = document.getElementById('ret-att-panel');
+  if (!att.length) {
+    attEl.innerHTML = `<div class="empty"><div class="empty-ico">✅</div><div class="empty-txt">Aucune demande en attente</div></div>`;
+  } else {
+    attEl.innerHTML = att.map(r => {
+      const u = getUserById(r.user_id);
+      return `<div class="ret-card">
+        <div class="ret-header">
+          <div><div class="ret-name">👑 ${u?.nom||'Leader inconnu'}</div><div class="ret-date">${fmtDate(r.created_at)}</div></div>
+          <div class="ret-amount">${fmt(r.montant)}</div>
+        </div>
+        ${r.note ? `<div class="ret-note">"${r.note}"</div>` : ''}
+        <div class="ret-actions">
+          <button class="btn-val" onclick="confirmRetrait('${r.id}','valide')">✔ Valider</button>
+          <button class="btn-ref" onclick="confirmRetrait('${r.id}','refuse')">❌ Refuser</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  // Historique
+  const histEl = document.getElementById('ret-hist-panel');
+  if (!hist.length) {
+    histEl.innerHTML = `<div class="empty"><div class="empty-ico">📋</div><div class="empty-txt">Aucun retrait traité</div></div>`;
+  } else {
+    histEl.innerHTML = hist.map(r => {
+      const u    = getUserById(r.user_id);
+      const mgr  = r.valide_par ? getUserById(r.valide_par) : null;
+      const badge = r.statut === 'valide'
+        ? `<span class="status-badge sb-val">✅ Validé</span>`
+        : `<span class="status-badge sb-ref">❌ Refusé</span>`;
+      return `<div class="ret-card">
+        <div class="ret-header">
+          <div><div class="ret-name">👑 ${u?.nom||'—'}</div><div class="ret-date">${fmtDate(r.created_at)}</div></div>
+          <div style="text-align:right">
+            <div class="ret-amount" style="color:${r.statut==='valide'?'var(--accent)':'var(--red)'};">${fmt(r.montant)}</div>
+            <div style="margin-top:4px">${badge}</div>
+          </div>
+        </div>
+        ${r.note ? `<div class="ret-note">"${r.note}"</div>` : ''}
+        ${mgr ? `<div style="font-size:10px;color:var(--muted)">Traité par ${mgr.nom} · ${fmtDateShort(r.valide_at)}</div>` : ''}
+      </div>`;
+    }).join('');
+  }
+}
+
+function switchStab(s) {
+  ACTIVE_STAB = s;
+  document.getElementById('stab-att').classList.toggle('on', s==='att');
+  document.getElementById('stab-hist').classList.toggle('on', s==='hist');
+  document.getElementById('ret-att-panel').style.display  = s==='att'  ? '' : 'none';
+  document.getElementById('ret-hist-panel').style.display = s==='hist' ? '' : 'none';
+}
+
+function updateRetDot() {
+  const att = DATA.retraits.filter(r => r.statut === 'en_attente').length;
+  document.getElementById('retDot').style.display = att > 0 ? '' : 'none';
+}
+
+function confirmRetrait(id, action) {
+  const r = DATA.retraits.find(x => x.id === id);
+  const u = r ? getUserById(r.user_id) : null;
+  const isVal = action === 'valide';
+  showModal(
+    isVal ? '✅ Valider ce retrait ?' : '❌ Refuser ce retrait ?',
+    `Retrait de <strong>${fmt(r?.montant)}</strong> demandé par <strong>${u?.nom||'—'}</strong>.<br>Cette action sera enregistrée et ne peut pas être annulée.`,
+    isVal ? 'mbtn-confirm-ok' : 'mbtn-confirm-red',
+    isVal ? 'Valider' : 'Refuser',
+    () => doTraitRetrait(id, action)
+  );
+}
+
+async function doTraitRetrait(id, action) {
+  closeModal();
+  try {
+    const { error } = await getSb().from('retraits').update({
+      statut:    action,
+      valide_par: SESSION.id,
+      valide_at:  new Date().toISOString()
+    }).eq('id', id);
+    if (error) throw error;
+    toast(action === 'valide' ? '✅ Retrait validé' : '❌ Retrait refusé', action === 'valide' ? 'success' : 'error');
+    await refreshData();
+  } catch(e) {
+    toast('Erreur : ' + (e.message||'réessayez'), 'error');
+  }
+}
+
+/* ══════════════════════════════════════════
+   TAB : ÉQUIPE
+══════════════════════════════════════════ */
+function renderEquipe() {
+  renderLeaders();
+  renderVendeurs();
+}
+
+function getLeaderStats() {
+  const journees = getFilteredJournees();
+  return DATA.users.filter(u => u.role === 'leader').map(leader => {
+    const myV   = DATA.users.filter(v => v.role === 'vendeur' && v.leader_id === leader.id);
+    const myIds = myV.map(v => v.id);
+    const myJ   = journees.filter(j => myIds.includes(j.vendeur_id));
+    const ca    = sumCol(myJ, 'total_fcfa');
+    const comm  = sumCol(myJ, 'commission_leader');
+    const units = sumCol(myJ, 'total_vendu');
+    const retrait = DATA.retraits.filter(r => r.user_id === leader.id && r.statut === 'valide').reduce((a,r)=>a+(Number(r.montant)||0),0);
+    const solde = comm - retrait;
+    const nbActifs = myV.filter(v => v.actif).length;
+    // Perf badge
+    let perf = 'faible';
+    if (units >= 30) perf = 'fort';
+    else if (units >= 10) perf = 'moyen';
+    return { ...leader, ca, comm, units, retrait, solde, nbActifs, nbVendeurs: myV.length, perf };
+  }).sort((a,b) => b.ca - a.ca);
+}
+
+function renderLeaders() {
+  const leaders = getLeaderStats();
+  const el = document.getElementById('leadersPanel');
+  if (!leaders.length) {
+    el.innerHTML = `<div class="empty"><div class="empty-ico">👑</div><div class="empty-txt">Aucun leader</div></div>`;
+    return;
+  }
+  el.innerHTML = leaders.map((l,i) => {
+    const perfLabel = {fort:'🟢 Fort', moyen:'🟡 Moyen', faible:'🔴 Faible'}[l.perf];
+    const perfClass = {fort:'pb-fort', moyen:'pb-moyen', faible:'pb-faible'}[l.perf];
+    const initiale = (l.nom||'?')[0].toUpperCase();
+    return `<div class="leader-card" style="animation-delay:${i*0.05}s">
+      <div class="lc-top">
+        <div class="lc-avatar">${initiale}</div>
+        <div>
+          <div class="lc-name">${l.nom}</div>
+          <div class="lc-ident">@${l.identifiant} · ${l.nbActifs}/${l.nbVendeurs} vendeurs</div>
+        </div>
+        <span class="perf-badge ${perfClass}">${perfLabel}</span>
+      </div>
+      <div class="lc-grid">
+        <div class="lc-stat"><div class="lc-stat-val pos">${fmt(l.ca)}</div><div class="lc-stat-lbl">CA équipe</div></div>
+        <div class="lc-stat"><div class="lc-stat-val">${fmtN(l.units)} u.</div><div class="lc-stat-lbl">Unités</div></div>
+        <div class="lc-stat"><div class="lc-stat-val" style="color:var(--amber)">${fmt(l.comm)}</div><div class="lc-stat-lbl">Commissions</div></div>
+        <div class="lc-stat"><div class="lc-stat-val ${l.solde>=0?'pos':'neg'}">${fmt(l.solde)}</div><div class="lc-stat-lbl">Solde dispo</div></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderVendeurs() {
+  const journees = getFilteredJournees();
+  const rows = DATA.users.filter(u => u.role === 'vendeur').map(v => {
+    const myJ    = journees.filter(j => j.vendeur_id === v.id);
+    const ca     = sumCol(myJ, 'total_fcfa');
+    const units  = sumCol(myJ, 'total_vendu');
+    const comm   = sumCol(myJ, 'commission_vendeur');
+    const leader = getUserById(v.leader_id);
+    return { ...v, ca, units, comm, leaderNom: leader?.nom||'—' };
+  }).sort((a,b) => b.units - a.units);
+
+  const tb = document.getElementById('vendeursTable');
+  if (!rows.length) {
+    tb.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--muted)">Aucun vendeur</td></tr>`;
+    return;
+  }
+  tb.innerHTML = rows.map(v => `<tr>
+    <td><strong>${v.nom}</strong><br><span style="font-size:9px;color:var(--muted)">@${v.identifiant}</span></td>
+    <td>${v.leaderNom}</td>
+    <td class="mono">${fmtN(v.units)}</td>
+    <td class="mono">${fmt(v.ca)}</td>
+    <td class="mono pos">${fmt(v.comm)}</td>
+    <td><span class="status-badge ${v.actif?'sb-val':'sb-ref'}">${v.actif?'Actif':'Inactif'}</span></td>
+  </tr>`).join('');
+}
+
+/* ══════════════════════════════════════════
+   TAB : CLASSEMENTS
+══════════════════════════════════════════ */
+function renderClassements() {
+  const journees = getFilteredJournees();
+  const leaders  = getLeaderStats();
+  const vendeurs = DATA.users.filter(u => u.role === 'vendeur').map(v => {
+    const myJ  = journees.filter(j => j.vendeur_id === v.id);
+    return { ...v, units: sumCol(myJ,'total_vendu'), ca: sumCol(myJ,'total_fcfa') };
+  });
+
+  // Top 3 leaders
+  const topL = [...leaders].sort((a,b) => b.ca - a.ca).slice(0,3);
+  document.getElementById('topLeaders').innerHTML = topL.length
+    ? topL.map((l,i) => rankCard(i+1, l.nom, `${fmtN(l.units)} unités · ${l.nbActifs} vendeurs`, fmt(l.ca))).join('')
+    : emptyState('👑','Aucune donnée leader');
+
+  // Top 3 vendeurs
+  const topV = [...vendeurs].sort((a,b) => b.units - a.units).slice(0,3);
+  document.getElementById('topVendeurs').innerHTML = topV.length
+    ? topV.map((v,i) => rankCard(i+1, v.nom, fmt(v.ca), fmtN(v.units)+' u.')).join('')
+    : emptyState('🛒','Aucune donnée vendeur');
+
+  // Inactifs > 7j
+  const now = new Date();
+  const inactifs = DATA.users.filter(u => u.role==='vendeur' && u.actif).filter(v => {
+    const lastJ = DATA.journees.find(j => j.vendeur_id === v.id);
+    if (!lastJ) return true;
+    return (now - new Date(lastJ.date_journee)) / 86400000 > 7;
+  });
+  document.getElementById('inactifs').innerHTML = inactifs.length
+    ? inactifs.map(v => {
+        const lastJ = DATA.journees.find(j => j.vendeur_id === v.id);
+        const days  = lastJ ? Math.floor((now - new Date(lastJ.date_journee))/86400000) : '∞';
+        const ldr   = getUserById(v.leader_id);
+        return `<div class="rank-card" style="border-left:3px solid var(--red)">
+          <div style="font-size:22px">🔻</div>
+          <div class="rank-info">
+            <div class="rank-name">${v.nom}</div>
+            <div class="rank-sub">Leader : ${ldr?.nom||'—'}</div>
+          </div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:var(--red)">${days}j</div>
+        </div>`;
+      }).join('')
+    : emptyState('✅','Tous les vendeurs sont actifs');
+}
+
+function rankCard(pos, nom, sub, val) {
+  const cls = pos===1?'rn-1':pos===2?'rn-2':pos===3?'rn-3':'rn-x';
+  const medal= pos===1?'🥇':pos===2?'🥈':pos===3?'🥉':pos;
+  return `<div class="rank-card" style="animation-delay:${pos*0.05}s">
+    <div class="rank-num ${cls}">${medal}</div>
+    <div class="rank-info"><div class="rank-name">${nom}</div><div class="rank-sub">${sub}</div></div>
+    <div class="rank-val">${val}</div>
+  </div>`;
+}
+
+function emptyState(ico, txt) {
+  return `<div class="empty"><div class="empty-ico">${ico}</div><div class="empty-txt">${txt}</div></div>`;
+}
+
+/* ══════════════════════════════════════════
+   TAB : ALERTES
+══════════════════════════════════════════ */
+function renderAlertes() {
+  const alertes = [];
+  const journees = getFilteredJournees();
+  const now = new Date();
+
+  // CA en baisse vs période précédente
+  if (PERIOD !== 'all') {
+    const prevJ = getPreviousPeriodJournees();
+    const curCA  = sumCol(journees, 'total_fcfa');
+    const prevCA = sumCol(prevJ, 'total_fcfa');
+    if (prevCA > 0 && curCA < prevCA * 0.8) {
+      const pct = Math.round((1 - curCA/prevCA)*100);
+      alertes.push({ type:'warn', msg:`⚠️ CA en baisse de ${pct}% par rapport à la période précédente (${fmt(prevCA)} → ${fmt(curCA)})` });
+    }
+  }
+
+  // Leader sans activité équipe depuis +5j
+  DATA.users.filter(u => u.role==='leader' && u.actif).forEach(l => {
+    const myVIds = DATA.users.filter(v => v.role==='vendeur' && v.leader_id===l.id).map(v=>v.id);
+    const lastJ  = DATA.journees.find(j => myVIds.includes(j.vendeur_id));
+    if (!lastJ) {
+      alertes.push({ type:'warn', msg:`⚠️ Leader ${l.nom} : aucune journée enregistrée dans son équipe` });
+    } else {
+      const diff = (now - new Date(lastJ.date_journee))/86400000;
+      if (diff > 5) alertes.push({ type:'warn', msg:`⚠️ Leader ${l.nom} : équipe inactive depuis ${Math.floor(diff)} jours` });
+    }
+  });
+
+  // Commissions leaders > 20% du CA
+  const totalCA = sumCol(journees, 'total_fcfa');
+  const totalLC = sumCol(journees, 'commission_leader');
+  if (totalCA > 0 && totalLC / totalCA > 0.20) {
+    alertes.push({ type:'warn', msg:`⚠️ Commissions leaders (${fmt(totalLC)}) dépassent 20% du CA — vérifiez les paramètres` });
+  }
+
+  // Vendeur sans vente depuis +3j
+  DATA.users.filter(u => u.role==='vendeur' && u.actif).forEach(v => {
+    const lastJ = DATA.journees.find(j => j.vendeur_id === v.id);
+    if (!lastJ) {
+      alertes.push({ type:'warn', msg:`⚠️ ${v.nom} n'a jamais enregistré de journée` });
+    } else {
+      const diff = (now - new Date(lastJ.date_journee))/86400000;
+      if (diff > 3) alertes.push({ type:'warn', msg:`⚠️ ${v.nom} sans vente depuis ${Math.floor(diff)} jours` });
+    }
+  });
+
+  // Tout va bien
+  if (!alertes.length) {
+    alertes.push({ type:'ok', msg:'✅ Aucune anomalie détectée sur la période sélectionnée.' });
+  }
+
+  document.getElementById('alertesPanel').innerHTML = alertes.map(a =>
+    `<div class="alert-card al-${a.type}">
+      <div class="al-msg">${a.msg}</div>
+    </div>`
+  ).join('');
+}
+
+/* ══════════════════════════════════════════
+   TAB : HISTORIQUE
+══════════════════════════════════════════ */
+function populateFilters() {
+  const leaders  = DATA.users.filter(u => u.role === 'leader');
+  const vendeurs = DATA.users.filter(u => u.role === 'vendeur');
+  const lSel = document.getElementById('filtLeader');
+  const vSel = document.getElementById('filtVendeur');
+  lSel.innerHTML = '<option value="">Tous les leaders</option>' +
+    leaders.map(l => `<option value="${l.id}">${l.nom}</option>`).join('');
+  vSel.innerHTML = '<option value="">Tous les vendeurs</option>' +
+    vendeurs.map(v => `<option value="${v.id}">${v.nom}</option>`).join('');
+}
+
+function renderHistorique() {
+  const filtLeader  = document.getElementById('filtLeader').value;
+  const filtVendeur = document.getElementById('filtVendeur').value;
+  let journees = getFilteredJournees();
+
+  if (filtVendeur) {
+    journees = journees.filter(j => j.vendeur_id === filtVendeur);
+  } else if (filtLeader) {
+    const myVIds = DATA.users.filter(v => v.role==='vendeur' && v.leader_id===filtLeader).map(v=>v.id);
+    journees = journees.filter(j => myVIds.includes(j.vendeur_id));
+  }
+
+  const total = journees.length;
+  const pages = Math.ceil(total / HIST_PER_PAGE);
+  if (HIST_PAGE >= pages) HIST_PAGE = Math.max(0, pages-1);
+  const slice = journees.slice(HIST_PAGE * HIST_PER_PAGE, (HIST_PAGE+1)*HIST_PER_PAGE);
+
+  const tb = document.getElementById('histTable');
+  if (!slice.length) {
+    tb.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--muted)">Aucune journée</td></tr>`;
+    document.getElementById('pagination').innerHTML = '';
+    return;
+  }
+
+  tb.innerHTML = slice.map(j => {
+    const v   = getUserById(j.vendeur_id);
+    const ldr = v ? getUserById(v.leader_id) : null;
+    const profit = (Number(j.part_entreprise_nette)||0) - (Number(j.commission_leader)||0);
+    return `<tr>
+      <td style="white-space:nowrap">${fmtDateShort(j.date_journee)}</td>
+      <td><strong>${v?.nom||'—'}</strong></td>
+      <td>${ldr?.nom||'—'}</td>
+      <td class="mono">${fmtN(j.total_vendu)}</td>
+      <td class="mono">${fmt(j.total_fcfa)}</td>
+      <td class="mono pos">${fmt(j.commission_vendeur)}</td>
+      <td class="mono" style="color:var(--amber)">${fmt(j.commission_leader)}</td>
+      <td class="mono ${profit>=0?'pos':'neg'}">${fmt(profit)}</td>
+      <td class="mono ${j.pertes>0?'neg':'muted'}">${j.pertes||0}</td>
+    </tr>`;
+  }).join('');
+
+  // Pagination
+  const pgEl = document.getElementById('pagination');
+  if (pages <= 1) { pgEl.innerHTML=''; return; }
+  pgEl.innerHTML = `
+    <button class="pg-btn" onclick="goHist(${HIST_PAGE-1})" ${HIST_PAGE===0?'disabled':''}>← Préc.</button>
+    <span class="pg-info">Page ${HIST_PAGE+1} / ${pages} · ${total} lignes</span>
+    <button class="pg-btn" onclick="goHist(${HIST_PAGE+1})" ${HIST_PAGE>=pages-1?'disabled':''}>Suiv. →</button>`;
+}
+
+function goHist(page) {
+  HIST_PAGE = page;
+  renderHistorique();
+  document.getElementById('tab-histoire').scrollIntoView({ behavior:'smooth' });
+}
+
+/* ══════════════════════════════════════════
+   NAVIGATION
+══════════════════════════════════════════ */
+function goTab(tab) {
+  ACTIVE_TAB = tab;
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('on'));
+  document.querySelectorAll('.ni').forEach(n => n.classList.remove('on'));
+  document.getElementById('tab-' + tab).classList.add('on');
+  document.getElementById('nv-' + tab).classList.add('on');
+  document.getElementById('main').scrollTo({ top:0, behavior:'smooth' });
+}
+
+/* ══════════════════════════════════════════
+   MODAL
+══════════════════════════════════════════ */
+let _modalCb = null;
+function showModal(title, msg, btnClass, btnLabel, cb) {
+  document.getElementById('modalTitle').textContent = title;
+  document.getElementById('modalMsg').innerHTML = msg;
+  const btn = document.getElementById('modalConfirm');
+  btn.textContent = btnLabel;
+  btn.className = 'mbtn ' + btnClass;
+  _modalCb = cb;
+  btn.onclick = () => { if(_modalCb) _modalCb(); };
+  document.getElementById('modalBg').classList.add('open');
+}
+function closeModal() {
+  document.getElementById('modalBg').classList.remove('open');
+  _modalCb = null;
+}
+
+/* ══════════════════════════════════════════
+   TOAST
+══════════════════════════════════════════ */
+let _tt = null;
+function toast(msg, type='info') {
+  const el = document.getElementById('toast');
+  if (_tt) { clearTimeout(_tt); el.classList.remove('show'); }
+  el.textContent = msg;
+  el.className = 'toast ' + type;
+  void el.offsetWidth;
+  el.classList.add('show');
+  _tt = setTimeout(() => el.classList.remove('show'), 2800);
+}
+
+/* ══════════════════════════════════════════
+   LOGOUT
+══════════════════════════════════════════ */
+function doLogout() {
+  localStorage.removeItem('bf_session');
+  localStorage.removeItem('bf_mgr');
+  window.location.replace('index.html');
+}
+
+/* ══════════════════════════════════════════
+   DÉMARRAGE — chargement dynamique Supabase
+   Compatible document.write() et ouverture directe
+══════════════════════════════════════════ */
+(function startApp() {
+  setLdTxt('Chargement Supabase…');
+
+  // Si Supabase est déjà disponible (chargé avant ce script)
+  if (typeof supabase !== 'undefined') {
+    setLdTxt('Supabase prêt ✓');
+    boot();
+    return;
+  }
+
+  // Charger Supabase dynamiquement
+  const script = document.createElement('script');
+  script.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
+  script.onload = function() {
+    setLdTxt('Supabase chargé ✓');
+    boot();
+  };
+  script.onerror = function() {
+    setLdTxt('Erreur CDN Supabase');
+    // Tenter avec une URL de secours
+    const script2 = document.createElement('script');
+    script2.src = 'https://unpkg.com/@supabase/supabase-js@2';
+    script2.onload = function() { setLdTxt('CDN secours ✓'); boot(); };
+    script2.onerror = function() {
+      setLdTxt('CDN inaccessible — vérifiez votre connexion');
+      setTimeout(() => showApp(), 2000);
+    };
+    document.head.appendChild(script2);
+  };
+  document.head.appendChild(script);
+})();
+</script>
+</body>
+</html>
