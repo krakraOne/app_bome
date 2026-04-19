@@ -222,15 +222,15 @@
     <!-- Manager -->
     <div class="test-group-lbl" style="margin-top:12px">🧑‍💼 Manager</div>
     <div class="test-accounts">
-      <div class="ta" onclick="fillTestEmail('manager@bomefrancois.com','Test2025!')">
+      <div class="ta" onclick="fillTestEmail('manager','0000')">
         <div class="ta-left">
           <div class="ta-avatar" style="background:linear-gradient(135deg,#2f8be6,#1e72cc)">M</div>
           <div>
             <div class="ta-name">Manager Principal</div>
-            <div class="ta-ident"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="177a7679767072655775787a727165767974787e643974787a">[email&#160;protected]</a></div>
+            <div class="ta-ident">manager</div>
           </div>
         </div>
-        <div class="ta-pin" style="color:var(--b2)">MDP <span>Test2025!</span></div>
+        <div class="ta-pin" style="color:var(--b2)">PIN <span>0000</span></div>
       </div>
     </div>
 
@@ -478,14 +478,12 @@ VALUES (
   true
 ) ON CONFLICT (identifiant) DO NOTHING;
 
--- 6. Manager (via Supabase Auth — créez le compte manuellement)
--- Allez dans Supabase > Authentication > Users > Add User
--- Email : <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="2a474b444b4d4f586a4845474f4c584b444945435904494547">[email&#160;protected]</a> | Password : Test2025!
--- Puis insérez le profil :
-INSERT INTO users (nom, identifiant, role, actif)
+-- 6. Manager Principal (PIN: 0000)
+INSERT INTO users (nom, identifiant, pin_hash, role, actif)
 VALUES (
   'Manager Principal',
-  '<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="f499959a95939186b4969b99919286959a979b9d87da979b99">[email&#160;protected]</a>',
+  'manager',
+  '___HASH_0000___',  -- remplacé dynamiquement à l'ouverture
   'manager',
   true
 ) ON CONFLICT (identifiant) DO NOTHING;</pre>
