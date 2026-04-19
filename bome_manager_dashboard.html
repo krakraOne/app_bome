@@ -22,7 +22,8 @@ body{display:flex;flex-direction:column;padding-top:env(safe-area-inset-top)}
 /* ── Loader ── */
 #loader{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;z-index:9999;transition:opacity .4s}
 #loader.out{opacity:0;pointer-events:none}
-.ld-logo{width:56px;height:56px;border-radius:16px;background:linear-gradient(135deg,var(--accent),var(--a2));display:flex;align-items:center;justify-content:center;font-size:26px;animation:pulse 1.5s ease-in-out infinite}
+.ld-logo{width:64px;height:64px;border-radius:18px;overflow:hidden;animation:pulse 1.5s ease-in-out infinite;background:var(--card)}
+.ld-logo img{width:100%;height:100%;object-fit:cover;display:block}
 @keyframes pulse{0%,100%{transform:scale(1);box-shadow:0 0 0 0 rgba(16,185,129,.4)}50%{transform:scale(1.05);box-shadow:0 0 0 12px rgba(16,185,129,0)}}
 .ld-bar{width:120px;height:3px;background:var(--border);border-radius:3px;overflow:hidden}
 .ld-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--blue));border-radius:3px;animation:fill 1.8s ease-in-out infinite}
@@ -33,7 +34,8 @@ body{display:flex;flex-direction:column;padding-top:env(safe-area-inset-top)}
 .hdr{background:var(--card);border-bottom:1px solid var(--border);padding:10px 15px;flex-shrink:0;box-shadow:var(--sh)}
 .hdr-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
 .hdr-brand{display:flex;align-items:center;gap:10px}
-.hdr-logo{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--a2));display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.hdr-logo{width:36px;height:36px;border-radius:10px;overflow:hidden;flex-shrink:0;background:var(--card)}
+.hdr-logo img{width:100%;height:100%;object-fit:cover;display:block}
 .hdr-title{font-size:.9rem;font-weight:800;line-height:1.2}
 .hdr-sub{font-size:10px;color:var(--muted);font-weight:600}
 .btn-logout{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);border-radius:9px;padding:6px 12px;font-family:'Syne',sans-serif;font-size:11px;font-weight:700;color:var(--red);cursor:pointer;white-space:nowrap}
@@ -199,13 +201,78 @@ nav{position:fixed;bottom:0;left:0;right:0;height:calc(var(--nav) + env(safe-are
 .pg-btn:disabled{opacity:.4;cursor:default}
 .pg-btn:not(:disabled):active{transform:scale(.95)}
 .pg-info{font-size:11px;color:var(--muted);font-weight:600}
+
+/* ── Search bar ── */
+.search-wrap{position:relative;margin-bottom:12px}
+.search-input{width:100%;border:1.5px solid var(--border);border-radius:12px;padding:10px 14px 10px 38px;font-family:'Syne',sans-serif;font-size:13px;font-weight:600;background:var(--card);color:var(--ink);outline:none;transition:border-color .15s;box-shadow:var(--sh)}
+.search-input:focus{border-color:var(--accent)}
+.search-ico{position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:15px;pointer-events:none}
+
+/* ── Date filter ── */
+.filter-shortcuts{display:flex;gap:5px;overflow-x:auto;scrollbar-width:none;margin-bottom:9px}
+.filter-shortcuts::-webkit-scrollbar{display:none}
+.date-range-card{background:var(--bg);border:1.5px solid var(--border);border-radius:12px;padding:10px 13px;display:flex;align-items:center;gap:10px;margin-bottom:7px}
+.date-range-card:focus-within{border-color:var(--accent)}
+.drc-group{flex:1;display:flex;flex-direction:column;gap:2px;min-width:0}
+.drc-label{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.drc-input{border:none;background:transparent;font-family:'Syne',sans-serif;font-size:12px;font-weight:700;color:var(--ink);outline:none;width:100%;padding:0}
+.drc-sep{font-size:18px;color:var(--border);flex-shrink:0;line-height:1}
+.range-display{background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);border-radius:9px;padding:6px 12px;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;color:var(--accent);text-align:center;letter-spacing:.03em}
+
+/* ── Vendeur fiche profil ── */
+.vd-header{background:linear-gradient(135deg,var(--blue),#1d4ed8);border-radius:var(--r);padding:16px;margin-bottom:12px;color:#fff;animation:fadeUp .3s ease both}
+.vd-avatar{width:52px;height:52px;border-radius:14px;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;margin-bottom:10px}
+.vd-name{font-size:18px;font-weight:800;margin-bottom:2px}
+.vd-sub{font-size:11px;opacity:.8;margin-bottom:2px}
+.vd-kpi-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;margin-top:12px}
+.vd-kpi{background:rgba(255,255,255,.15);border-radius:9px;padding:9px;text-align:center}
+.vd-kpi-val{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700}
+.vd-kpi-lbl{font-size:8px;font-weight:700;text-transform:uppercase;opacity:.8;margin-top:2px}
+.jour-row{background:var(--card);border-radius:10px;padding:11px 13px;margin-bottom:6px;border:1px solid var(--border);box-shadow:var(--sh);animation:fadeUp .2s ease both}
+.jour-date{font-size:11px;font-weight:700;color:var(--ink);margin-bottom:6px}
+.jour-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.jour-stat{background:var(--bg);border-radius:8px;padding:7px;text-align:center;border:1px solid var(--border)}
+.jour-stat-val{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;color:var(--ink)}
+.jour-stat-lbl{font-size:8px;font-weight:700;text-transform:uppercase;color:var(--muted);margin-top:1px}
+.rank-card{cursor:pointer}
+.rank-card:active{transform:scale(.97)}
+
+/* ── Team detail ── */
+.back-btn{display:flex;align-items:center;gap:6px;background:none;border:1px solid var(--border);border-radius:10px;padding:7px 13px;font-family:'Syne',sans-serif;font-size:12px;font-weight:700;color:var(--ink2);cursor:pointer;margin-bottom:14px}
+.back-btn:active{transform:scale(.95)}
+.team-header{background:linear-gradient(135deg,var(--purple),#7c3aed);border-radius:var(--r);padding:16px;margin-bottom:12px;color:#fff;animation:fadeUp .3s ease both}
+.team-hdr-name{font-size:18px;font-weight:800;margin-bottom:4px}
+.team-hdr-sub{font-size:11px;opacity:.8}
+.team-kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+.team-kpi{background:rgba(255,255,255,.15);border-radius:10px;padding:10px;text-align:center}
+.team-kpi-val{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700}
+.team-kpi-lbl{font-size:8px;font-weight:700;text-transform:uppercase;opacity:.8;margin-top:2px}
+.member-row{display:flex;align-items:center;gap:10px;padding:11px 13px;background:var(--card);border-radius:var(--r);margin-bottom:7px;box-shadow:var(--sh);border:1px solid var(--border);animation:fadeUp .25s ease both}
+.member-avatar{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;color:#fff;flex-shrink:0}
+.member-name{font-size:13px;font-weight:800}
+.member-sub{font-size:10px;color:var(--muted);margin-top:1px}
+.member-stats{margin-left:auto;text-align:right;flex-shrink:0}
+.member-units{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;color:var(--accent)}
+.member-ca{font-size:10px;color:var(--muted);margin-top:1px}
+.leader-tag{background:rgba(139,92,246,.12);color:var(--purple);border:1px solid rgba(139,92,246,.2);border-radius:20px;padding:2px 7px;font-size:9px;font-weight:700;margin-left:5px;vertical-align:middle}
+.team-card{background:var(--card);border-radius:var(--r);padding:14px;margin-bottom:10px;box-shadow:var(--sh);border:1px solid var(--border);cursor:pointer;animation:fadeUp .3s ease both;transition:transform .12s,box-shadow .12s}
+.team-card:active{transform:scale(.98);box-shadow:none}
+.tc-top{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.tc-avatar{width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,var(--purple),#7c3aed);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;color:#fff;flex-shrink:0}
+.tc-name{font-size:14px;font-weight:800}
+.tc-sub{font-size:10px;color:var(--muted);margin-top:1px}
+.tc-arrow{margin-left:auto;font-size:18px;color:var(--muted);flex-shrink:0}
+.tc-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.tc-stat{background:var(--bg);border-radius:9px;padding:8px 10px;border:1px solid var(--border)}
+.tc-stat-val{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;color:var(--ink)}
+.tc-stat-lbl{font-size:8px;font-weight:700;text-transform:uppercase;color:var(--muted);margin-top:2px}
 </style>
 </head>
 <body>
 
 <!-- ══ LOADER ══ -->
 <div id="loader">
-  <div class="ld-logo">🧴</div>
+  <div class="ld-logo"><img src="logo.png" alt="Bome François"></div>
   <div class="ld-bar"><div class="ld-fill"></div></div>
   <div class="ld-txt">Chargement du dashboard…</div>
 </div>
@@ -214,7 +281,7 @@ nav{position:fixed;bottom:0;left:0;right:0;height:calc(var(--nav) + env(safe-are
 <header class="hdr" id="hdr" style="display:none">
   <div class="hdr-top">
     <div class="hdr-brand">
-      <div class="hdr-logo">🧴</div>
+      <div class="hdr-logo"><img src="logo.png" alt="logo"></div>
       <div>
         <div class="hdr-title">Bome <span style="color:var(--accent)">François</span></div>
         <div class="hdr-sub" id="hdrSub">Dashboard Manager</div>
@@ -222,12 +289,25 @@ nav{position:fixed;bottom:0;left:0;right:0;height:calc(var(--nav) + env(safe-are
     </div>
     <button class="btn-logout" onclick="doLogout()">← Quitter</button>
   </div>
-  <div class="period-row">
-    <button class="pbtn" data-p="today" onclick="setPeriod('today',this)">Aujourd'hui</button>
-    <button class="pbtn on" data-p="7" onclick="setPeriod('7',this)">7 jours</button>
-    <button class="pbtn" data-p="30" onclick="setPeriod('30',this)">30 jours</button>
-    <button class="pbtn" data-p="all" onclick="setPeriod('all',this)">Tout</button>
+  <div class="filter-shortcuts">
+    <button class="pbtn" data-q="today" onclick="setQuickFilter('today',this)">Aujourd'hui</button>
+    <button class="pbtn" data-q="hier" onclick="setQuickFilter('hier',this)">Hier</button>
+    <button class="pbtn on" data-q="7" onclick="setQuickFilter('7',this)">7 derniers jours</button>
+    <button class="pbtn" data-q="30" onclick="setQuickFilter('30',this)">30 derniers jours</button>
+    <button class="pbtn" data-q="mois" onclick="setQuickFilter('mois',this)">Ce mois</button>
   </div>
+  <div class="date-range-card">
+    <div class="drc-group">
+      <div class="drc-label">📅 Du</div>
+      <input type="date" class="drc-input" id="dateFrom" onchange="onDateRange()">
+    </div>
+    <div class="drc-sep">→</div>
+    <div class="drc-group">
+      <div class="drc-label">📅 Au</div>
+      <input type="date" class="drc-input" id="dateTo" onchange="onDateRange()">
+    </div>
+  </div>
+  <div class="range-display" id="periodLabel">7 derniers jours</div>
 </header>
 
 <!-- ══ MAIN ══ -->
@@ -249,7 +329,6 @@ nav{position:fixed;bottom:0;left:0;right:0;height:calc(var(--nav) + env(safe-are
       <div class="kpi"><div class="kpi-stripe" style="background:var(--purple)"></div><div class="kpi-ico">🧑‍💼</div><div class="kpi-val" id="vVend">—</div><div class="kpi-lbl">Part vendeurs</div></div>
       <div class="kpi"><div class="kpi-stripe" style="background:var(--amber)"></div><div class="kpi-ico">👑</div><div class="kpi-val" id="vLdr">—</div><div class="kpi-lbl">Commissions leaders</div></div>
       <div class="kpi"><div class="kpi-stripe" style="background:var(--red)"></div><div class="kpi-ico">📦</div><div class="kpi-val" id="vUnits">—</div><div class="kpi-lbl">Unités vendues</div></div>
-      <div class="kpi"><div class="kpi-stripe" style="background:var(--red)"></div><div class="kpi-ico">🩹</div><div class="kpi-val" id="vPertes">—</div><div class="kpi-lbl">Pertes totales</div></div>
     </div>
 
     <div class="slabel">📒 Registre financier</div>
@@ -278,13 +357,11 @@ nav{position:fixed;bottom:0;left:0;right:0;height:calc(var(--nav) + env(safe-are
 
   <!-- ── TAB : ÉQUIPE ── -->
   <div class="tab-panel" id="tab-equipe">
-    <div class="slabel">👑 Leaders</div>
-    <div id="leadersPanel"></div>
-    <div class="slabel">🛒 Vendeurs</div>
-    <div class="tbl-wrap"><table>
-      <thead><tr><th>Vendeur</th><th>Leader</th><th>Unités</th><th>CA</th><th>Commission</th><th>Statut</th></tr></thead>
-      <tbody id="vendeursTable"></tbody>
-    </table></div>
+    <div class="search-wrap">
+      <span class="search-ico">🔍</span>
+      <input type="text" class="search-input" id="searchInput" placeholder="Rechercher un leader ou vendeur…" oninput="onSearch()">
+    </div>
+    <div id="equipePanel"></div>
   </div>
 
   <!-- ── TAB : CLASSEMENTS ── -->
@@ -310,7 +387,7 @@ nav{position:fixed;bottom:0;left:0;right:0;height:calc(var(--nav) + env(safe-are
       <select class="fsel" id="filtVendeur" onchange="renderHistorique()"><option value="">Tous les vendeurs</option></select>
     </div>
     <div class="tbl-wrap"><table>
-      <thead><tr><th>Date</th><th>Vendeur</th><th>Leader</th><th>Unités</th><th>CA</th><th>Comm. vendeur</th><th>Comm. leader</th><th>Profit</th><th>Pertes</th></tr></thead>
+      <thead><tr><th>Date</th><th>Vendeur</th><th>Leader</th><th>Unités</th><th>CA</th><th>Comm. vendeur</th><th>Comm. leader</th><th>Profit</th></tr></thead>
       <tbody id="histTable"></tbody>
     </table></div>
     <div class="pagination" id="pagination"></div>
@@ -362,11 +439,17 @@ function getSb() {
    STATE
 ══════════════════════════════════════════ */
 let SESSION = null;
-let PERIOD = '7';        // today | 7 | 30 | all
+let DATE_FROM = null;      // string YYYY-MM-DD
+let DATE_TO   = null;      // string YYYY-MM-DD
+let ACTIVE_QUICK = '7';    // today | hier | 7 | 30 | mois | custom
 let ACTIVE_TAB = 'vue';
 let ACTIVE_STAB = 'att';
 let HIST_PAGE = 0;
 const HIST_PER_PAGE = 50;
+let SEARCH_QUERY = '';
+let SELECTED_TEAM_ID = null;
+let SELECTED_VENDEUR_ID = null;
+let SELECTED_LEADER_ID = null;
 
 const DATA = { users: [], journees: [], retraits: [] };
 
@@ -409,6 +492,7 @@ async function boot() {
   }
 
   document.getElementById('hdrSub').textContent = SESSION.nom + ' · Manager';
+  restoreFilter();
   setLdTxt('Chargement des données…');
 
   // ── Chargement données ──
@@ -460,42 +544,108 @@ async function refreshData() {
 }
 
 /* ══════════════════════════════════════════
-   PERIOD FILTER
+   DATE FILTER
 ══════════════════════════════════════════ */
-function setPeriod(p, btn) {
-  PERIOD = p;
+function toDateStr(d) {
+  return d.toISOString().split('T')[0];
+}
+
+function setQuickFilter(name, btn) {
+  ACTIVE_QUICK = name;
   document.querySelectorAll('.pbtn').forEach(b => b.classList.toggle('on', b === btn));
+  const now = new Date();
+  let label = '';
+  if (name === 'today') {
+    DATE_FROM = DATE_TO = toDateStr(now);
+    label = "Aujourd'hui";
+  } else if (name === 'hier') {
+    const y = new Date(now - 86400000);
+    DATE_FROM = DATE_TO = toDateStr(y);
+    label = 'Hier';
+  } else if (name === '7') {
+    DATE_TO   = toDateStr(now);
+    DATE_FROM = toDateStr(new Date(now - 6*86400000));
+    label = '7 derniers jours';
+  } else if (name === '30') {
+    DATE_TO   = toDateStr(now);
+    DATE_FROM = toDateStr(new Date(now - 29*86400000));
+    label = '30 derniers jours';
+  } else if (name === 'mois') {
+    DATE_FROM = toDateStr(new Date(now.getFullYear(), now.getMonth(), 1));
+    DATE_TO   = toDateStr(now);
+    label = 'Ce mois (' + now.toLocaleDateString('fr-FR',{month:'long'}) + ')';
+  }
+  syncDateInputs();
+  document.getElementById('periodLabel').textContent = label;
+  saveFilter();
   renderAll();
 }
 
+function onDateRange() {
+  const f = document.getElementById('dateFrom').value;
+  const t = document.getElementById('dateTo').value;
+  if (!f || !t) return;
+  if (f > t) { toast('Date début > date fin','warn'); return; }
+  DATE_FROM = f;
+  DATE_TO   = t;
+  ACTIVE_QUICK = 'custom';
+  document.querySelectorAll('.pbtn').forEach(b => b.classList.remove('on'));
+  const df = new Date(f).toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'2-digit'});
+  const dt = new Date(t).toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'2-digit'});
+  document.getElementById('periodLabel').textContent = df + ' → ' + dt;
+  saveFilter();
+  renderAll();
+}
+
+function syncDateInputs() {
+  if (DATE_FROM) document.getElementById('dateFrom').value = DATE_FROM;
+  if (DATE_TO)   document.getElementById('dateTo').value   = DATE_TO;
+}
+
+function saveFilter() {
+  try { localStorage.setItem('bf_mgr_filter', JSON.stringify({ q: ACTIVE_QUICK, from: DATE_FROM, to: DATE_TO })); } catch {}
+}
+
+function restoreFilter() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('bf_mgr_filter') || 'null');
+    if (!saved) { setQuickFilter('7', document.querySelector('[data-q="7"]')); return; }
+    DATE_FROM = saved.from;
+    DATE_TO   = saved.to;
+    ACTIVE_QUICK = saved.q || '7';
+    syncDateInputs();
+    if (ACTIVE_QUICK !== 'custom') {
+      const btn = document.querySelector('[data-q="'+ACTIVE_QUICK+'"]');
+      if (btn) { document.querySelectorAll('.pbtn').forEach(b=>b.classList.remove('on')); btn.classList.add('on'); }
+    }
+    // Recalculate label
+    const labels = { today:"Aujourd'hui", hier:'Hier', '7':'7 derniers jours', '30':'30 derniers jours', mois:'Ce mois' };
+    const lbl = labels[ACTIVE_QUICK];
+    if (lbl) {
+      document.getElementById('periodLabel').textContent = lbl;
+    } else if (DATE_FROM && DATE_TO) {
+      const df = new Date(DATE_FROM).toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'2-digit'});
+      const dt = new Date(DATE_TO).toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'2-digit'});
+      document.getElementById('periodLabel').textContent = df + ' → ' + dt;
+    }
+  } catch { setQuickFilter('7', document.querySelector('[data-q="7"]')); }
+}
+
 function getFilteredJournees() {
-  const j = DATA.journees;
-  const now = new Date();
-  if (PERIOD === 'today') {
-    const today = toDateStr(now);
-    return j.filter(x => x.date_journee === today);
-  }
-  if (PERIOD === '7') {
-    const d = new Date(now - 7*86400000);
-    return j.filter(x => new Date(x.date_journee) >= d);
-  }
-  if (PERIOD === '30') {
-    const d = new Date(now - 30*86400000);
-    return j.filter(x => new Date(x.date_journee) >= d);
-  }
-  return j;
+  if (!DATE_FROM || !DATE_TO) return DATA.journees;
+  return DATA.journees.filter(x => x.date_journee >= DATE_FROM && x.date_journee <= DATE_TO);
 }
 
 function getPreviousPeriodJournees() {
-  const now = new Date();
-  const days = PERIOD === 'today' ? 1 : PERIOD === '7' ? 7 : PERIOD === '30' ? 30 : null;
-  if (!days) return [];
-  const end   = new Date(now - days*86400000);
-  const start = new Date(now - 2*days*86400000);
-  return DATA.journees.filter(x => {
-    const d = new Date(x.date_journee);
-    return d >= start && d < end;
-  });
+  if (!DATE_FROM || !DATE_TO) return [];
+  const dFrom = new Date(DATE_FROM);
+  const dTo   = new Date(DATE_TO);
+  const span  = dTo - dFrom; // ms
+  const prevTo   = new Date(dFrom - 86400000);
+  const prevFrom = new Date(prevTo - span);
+  const pf = toDateStr(prevFrom);
+  const pt = toDateStr(prevTo);
+  return DATA.journees.filter(x => x.date_journee >= pf && x.date_journee <= pt);
 }
 
 /* ══════════════════════════════════════════
@@ -517,9 +667,6 @@ function fmtDateShort(s) {
     return new Date(s).toLocaleDateString('fr-FR', { day:'numeric', month:'short', year:'2-digit' });
   } catch { return s||'—'; }
 }
-function toDateStr(d) {
-  return d.toISOString().split('T')[0];
-}
 function sumCol(arr, col) {
   return arr.reduce((a, x) => a + (Number(x[col])||0), 0);
 }
@@ -531,6 +678,9 @@ function getUserById(id) {
    RENDER ALL
 ══════════════════════════════════════════ */
 function renderAll() {
+  SELECTED_TEAM_ID = null;
+  SELECTED_VENDEUR_ID = null;
+  SELECTED_LEADER_ID = null;
   renderVue();
   renderRetraits();
   renderEquipe();
@@ -550,7 +700,6 @@ function renderVue() {
   const vd = sumCol(j, 'commission_vendeur');
   const lc = sumCol(j, 'commission_leader');
   const un = sumCol(j, 'total_vendu');
-  const pt = sumCol(j, 'pertes');
   const profit = ent - lc;
 
   // Retraits validés (toutes périodes pour le registre)
@@ -563,7 +712,6 @@ function renderVue() {
   document.getElementById('vVend').textContent   = fmt(vd);
   document.getElementById('vLdr').textContent    = fmt(lc);
   document.getElementById('vUnits').textContent  = fmtN(un) + ' u.';
-  document.getElementById('vPertes').textContent = fmtN(pt);
 
   document.getElementById('rCA').textContent    = fmt(ca);
   document.getElementById('rEnt').textContent   = fmt(ent);
@@ -678,85 +826,432 @@ async function doTraitRetrait(id, action) {
 /* ══════════════════════════════════════════
    TAB : ÉQUIPE
 ══════════════════════════════════════════ */
-function renderEquipe() {
-  renderLeaders();
-  renderVendeurs();
+function onSearch() {
+  SEARCH_QUERY = (document.getElementById('searchInput').value || '').toLowerCase().trim();
+  SELECTED_TEAM_ID = null;
+  SELECTED_VENDEUR_ID = null;
+  SELECTED_LEADER_ID = null;
+  renderEquipe();
 }
 
 function getLeaderStats() {
   const journees = getFilteredJournees();
   return DATA.users.filter(u => u.role === 'leader').map(leader => {
+    // Vendeurs de cette équipe
     const myV   = DATA.users.filter(v => v.role === 'vendeur' && v.leader_id === leader.id);
     const myIds = myV.map(v => v.id);
     const myJ   = journees.filter(j => myIds.includes(j.vendeur_id));
+    // Ventes personnelles du leader (si le leader vend lui-même)
+    const leaderJ = journees.filter(j => j.vendeur_id === leader.id);
     const ca    = sumCol(myJ, 'total_fcfa');
     const comm  = sumCol(myJ, 'commission_leader');
     const units = sumCol(myJ, 'total_vendu');
+    const leaderUnits = sumCol(leaderJ, 'total_vendu');
+    const leaderCA    = sumCol(leaderJ, 'total_fcfa');
     const retrait = DATA.retraits.filter(r => r.user_id === leader.id && r.statut === 'valide').reduce((a,r)=>a+(Number(r.montant)||0),0);
     const solde = comm - retrait;
     const nbActifs = myV.filter(v => v.actif).length;
-    // Perf badge
     let perf = 'faible';
     if (units >= 30) perf = 'fort';
     else if (units >= 10) perf = 'moyen';
-    return { ...leader, ca, comm, units, retrait, solde, nbActifs, nbVendeurs: myV.length, perf };
+    return { ...leader, ca, comm, units, retrait, solde, nbActifs, nbVendeurs: myV.length, perf, leaderUnits, leaderCA, vendeurs: myV };
   }).sort((a,b) => b.ca - a.ca);
 }
 
-function renderLeaders() {
-  const leaders = getLeaderStats();
-  const el = document.getElementById('leadersPanel');
-  if (!leaders.length) {
-    el.innerHTML = `<div class="empty"><div class="empty-ico">👑</div><div class="empty-txt">Aucun leader</div></div>`;
+function renderEquipe() {
+  const panel = document.getElementById('equipePanel');
+
+  // ── Fiche vendeur (priorité 1) ──
+  if (SELECTED_VENDEUR_ID) {
+    renderVendeurDetail(SELECTED_VENDEUR_ID, SELECTED_TEAM_ID);
     return;
   }
-  el.innerHTML = leaders.map((l,i) => {
-    const perfLabel = {fort:'🟢 Fort', moyen:'🟡 Moyen', faible:'🔴 Faible'}[l.perf];
-    const perfClass = {fort:'pb-fort', moyen:'pb-moyen', faible:'pb-faible'}[l.perf];
+
+  // ── Fiche leader (priorité 2) ──
+  if (SELECTED_LEADER_ID) {
+    renderLeaderDetail(SELECTED_LEADER_ID);
+    return;
+  }
+
+  // ── Vue détaillée d'une équipe ──
+  if (SELECTED_TEAM_ID) {
+    renderTeamDetail(SELECTED_TEAM_ID);
+    return;
+  }
+
+  // ── Liste des équipes ──
+  const leaders = getLeaderStats();
+  const q = SEARCH_QUERY;
+
+  let filtered = leaders;
+  if (q) {
+    filtered = leaders.filter(l => {
+      const matchLeader = l.nom.toLowerCase().includes(q) || (l.identifiant||'').toLowerCase().includes(q);
+      const matchVendeur = l.vendeurs.some(v => v.nom.toLowerCase().includes(q) || (v.identifiant||'').toLowerCase().includes(q));
+      return matchLeader || matchVendeur;
+    });
+  }
+
+  if (!filtered.length) {
+    panel.innerHTML = emptyState('🔍', q ? 'Aucun résultat pour "' + SEARCH_QUERY + '"' : 'Aucune équipe');
+    return;
+  }
+
+  const perfLabel = { fort:'🟢 Fort', moyen:'🟡 Moyen', faible:'🔴 Faible' };
+  const perfClass = { fort:'pb-fort', moyen:'pb-moyen', faible:'pb-faible' };
+
+  panel.innerHTML = filtered.map((l, i) => {
     const initiale = (l.nom||'?')[0].toUpperCase();
-    return `<div class="leader-card" style="animation-delay:${i*0.05}s">
-      <div class="lc-top">
-        <div class="lc-avatar">${initiale}</div>
-        <div>
-          <div class="lc-name">${l.nom}</div>
-          <div class="lc-ident">@${l.identifiant} · ${l.nbActifs}/${l.nbVendeurs} vendeurs</div>
+    return `<div class="team-card" style="animation-delay:${i*0.05}s" onclick="openTeamDetail('${l.id}')">
+      <div class="tc-top">
+        <div class="tc-avatar">${initiale}</div>
+        <div style="flex:1;min-width:0">
+          <div class="tc-name">Équipe ${l.nom}</div>
+          <div class="tc-sub">@${l.identifiant} · ${l.nbActifs}/${l.nbVendeurs} vendeurs actifs</div>
         </div>
-        <span class="perf-badge ${perfClass}">${perfLabel}</span>
+        <span class="perf-badge ${perfClass[l.perf]}" style="flex-shrink:0">${perfLabel[l.perf]}</span>
+        <span class="tc-arrow">›</span>
       </div>
-      <div class="lc-grid">
-        <div class="lc-stat"><div class="lc-stat-val pos">${fmt(l.ca)}</div><div class="lc-stat-lbl">CA équipe</div></div>
-        <div class="lc-stat"><div class="lc-stat-val">${fmtN(l.units)} u.</div><div class="lc-stat-lbl">Unités</div></div>
-        <div class="lc-stat"><div class="lc-stat-val" style="color:var(--amber)">${fmt(l.comm)}</div><div class="lc-stat-lbl">Commissions</div></div>
-        <div class="lc-stat"><div class="lc-stat-val ${l.solde>=0?'pos':'neg'}">${fmt(l.solde)}</div><div class="lc-stat-lbl">Solde dispo</div></div>
+      <div class="tc-grid">
+        <div class="tc-stat"><div class="tc-stat-val pos">${fmt(l.ca)}</div><div class="tc-stat-lbl">CA équipe</div></div>
+        <div class="tc-stat"><div class="tc-stat-val">${fmtN(l.units)} u.</div><div class="tc-stat-lbl">Unités équipe</div></div>
+        <div class="tc-stat"><div class="tc-stat-val" style="color:var(--amber)">${fmt(l.comm)}</div><div class="tc-stat-lbl">Commissions</div></div>
+        <div class="tc-stat"><div class="tc-stat-val ${l.solde>=0?'pos':'neg'}">${fmt(l.solde)}</div><div class="tc-stat-lbl">Solde dispo</div></div>
       </div>
     </div>`;
   }).join('');
 }
 
-function renderVendeurs() {
+function openTeamDetail(leaderId) {
+  SELECTED_TEAM_ID = leaderId;
+  renderTeamDetail(leaderId);
+  document.getElementById('main').scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function closeTeamDetail() {
+  SELECTED_TEAM_ID = null;
+  renderEquipe();
+}
+
+function renderTeamDetail(leaderId) {
+  const panel   = document.getElementById('equipePanel');
   const journees = getFilteredJournees();
-  const rows = DATA.users.filter(u => u.role === 'vendeur').map(v => {
-    const myJ    = journees.filter(j => j.vendeur_id === v.id);
-    const ca     = sumCol(myJ, 'total_fcfa');
-    const units  = sumCol(myJ, 'total_vendu');
-    const comm   = sumCol(myJ, 'commission_vendeur');
-    const leader = getUserById(v.leader_id);
-    return { ...v, ca, units, comm, leaderNom: leader?.nom||'—' };
+  const leader  = DATA.users.find(u => u.id === leaderId);
+  if (!leader) { panel.innerHTML = emptyState('❓','Leader introuvable'); return; }
+
+  // Vendeurs de l'équipe
+  const teamVendeurs = DATA.users.filter(v => v.role === 'vendeur' && v.leader_id === leaderId);
+  const teamIds = teamVendeurs.map(v => v.id);
+
+  // Ventes personnelles du leader
+  const leaderJ  = journees.filter(j => j.vendeur_id === leaderId);
+  const leaderUnits = sumCol(leaderJ, 'total_vendu');
+  const leaderCA    = sumCol(leaderJ, 'total_fcfa');
+  const leaderComm  = sumCol(leaderJ, 'commission_vendeur');
+
+  // Stats de l'équipe (vendeurs uniquement)
+  const teamJ = journees.filter(j => teamIds.includes(j.vendeur_id));
+  const teamCA    = sumCol(teamJ, 'total_fcfa');
+  const teamUnits = sumCol(teamJ, 'total_vendu');
+  const teamComm  = sumCol(teamJ, 'commission_leader');
+
+  // Vendeurs avec stats, triés par perf
+  const vendRows = teamVendeurs.map(v => {
+    const myJ   = journees.filter(j => j.vendeur_id === v.id);
+    const units = sumCol(myJ, 'total_vendu');
+    const ca    = sumCol(myJ, 'total_fcfa');
+    const comm  = sumCol(myJ, 'commission_vendeur');
+    let perf = 'faible';
+    if (units >= 20) perf = 'fort';
+    else if (units >= 7) perf = 'moyen';
+    return { ...v, units, ca, comm, perf };
   }).sort((a,b) => b.units - a.units);
 
-  const tb = document.getElementById('vendeursTable');
-  if (!rows.length) {
-    tb.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--muted)">Aucun vendeur</td></tr>`;
-    return;
+  const perfLabel = { fort:'🟢 Fort', moyen:'🟡 Moyen', faible:'🔴 Faible' };
+  const perfColor = { fort:'var(--accent)', moyen:'var(--amber)', faible:'var(--red)' };
+  const avatarColors = ['#8b5cf6','#3b82f6','#10b981','#f59e0b','#ef4444'];
+
+  const initiale = (leader.nom||'?')[0].toUpperCase();
+
+  let html = `
+    <button class="back-btn" onclick="closeTeamDetail()">← Toutes les équipes</button>
+
+    <div class="team-header">
+      <div class="team-hdr-name">👥 Équipe ${leader.nom}</div>
+      <div class="team-hdr-sub">@${leader.identifiant} · ${teamVendeurs.length} vendeur(s)</div>
+      <div class="team-kpi-grid">
+        <div class="team-kpi"><div class="team-kpi-val">${fmt(teamCA)}</div><div class="team-kpi-lbl">CA équipe</div></div>
+        <div class="team-kpi"><div class="team-kpi-val">${fmtN(teamUnits)} u.</div><div class="team-kpi-lbl">Unités équipe</div></div>
+        <div class="team-kpi"><div class="team-kpi-val">${fmt(teamComm)}</div><div class="team-kpi-lbl">Commissions</div></div>
+        <div class="team-kpi"><div class="team-kpi-val">${teamVendeurs.filter(v=>v.actif).length}/${teamVendeurs.length}</div><div class="team-kpi-lbl">Actifs</div></div>
+      </div>
+    </div>
+
+    <div class="slabel">👑 Leader</div>
+    <div class="member-row" style="border-left:3px solid var(--purple);cursor:pointer" onclick="openLeaderDetail('${leaderId}')">
+      <div class="member-avatar" style="background:linear-gradient(135deg,var(--purple),#7c3aed)">${initiale}</div>
+      <div style="flex:1;min-width:0">
+        <div class="member-name">${leader.nom} <span class="leader-tag">Leader</span></div>
+        <div class="member-sub">@${leader.identifiant}</div>
+      </div>
+      <div class="member-stats">
+        <div class="member-units">${fmtN(leaderUnits)} u.</div>
+        <div class="member-ca">${fmt(leaderCA)}</div>
+        ${leaderComm > 0 ? `<div style="font-size:9px;color:var(--accent)">${fmt(leaderComm)} comm.</div>` : ''}
+      </div>
+      <span style="color:var(--muted);font-size:16px;flex-shrink:0;margin-left:6px">›</span>
+    </div>
+
+    <div class="slabel">🛒 Vendeurs (${vendRows.length}) — triés par performance</div>`;
+
+  if (!vendRows.length) {
+    html += emptyState('🛒','Aucun vendeur dans cette équipe');
+  } else {
+    html += vendRows.map((v, i) => {
+      const color = avatarColors[i % avatarColors.length];
+      const av = (v.nom||'?')[0].toUpperCase();
+      return `<div class="member-row" style="animation-delay:${i*0.04}s;cursor:pointer" onclick="openVendeurDetail('${v.id}','${leaderId}')">
+        <div class="member-avatar" style="background:${color}">${av}</div>
+        <div style="flex:1;min-width:0">
+          <div class="member-name">${v.nom}</div>
+          <div class="member-sub">@${v.identifiant} · <span style="color:${perfColor[v.perf]};font-weight:700">${perfLabel[v.perf]}</span></div>
+        </div>
+        <div class="member-stats">
+          <div class="member-units">${fmtN(v.units)} u.</div>
+          <div class="member-ca">${fmt(v.ca)}</div>
+          <div style="font-size:9px;color:var(--accent)">${fmt(v.comm)} comm.</div>
+        </div>
+        <span style="color:var(--muted);font-size:16px;flex-shrink:0;margin-left:6px">›</span>
+      </div>`;
+    }).join('');
   }
-  tb.innerHTML = rows.map(v => `<tr>
-    <td><strong>${v.nom}</strong><br><span style="font-size:9px;color:var(--muted)">@${v.identifiant}</span></td>
-    <td>${v.leaderNom}</td>
-    <td class="mono">${fmtN(v.units)}</td>
-    <td class="mono">${fmt(v.ca)}</td>
-    <td class="mono pos">${fmt(v.comm)}</td>
-    <td><span class="status-badge ${v.actif?'sb-val':'sb-ref'}">${v.actif?'Actif':'Inactif'}</span></td>
-  </tr>`).join('');
+
+  panel.innerHTML = html;
+}
+
+function openLeaderDetail(leaderId) {
+  SELECTED_LEADER_ID = leaderId;
+  SELECTED_VENDEUR_ID = null;
+  // SELECTED_TEAM_ID conservé pour le bouton retour
+  document.getElementById('main').scrollTo({ top: 0, behavior: 'smooth' });
+  renderEquipe();
+}
+
+function closeLeaderDetail() {
+  SELECTED_LEADER_ID = null;
+  SELECTED_VENDEUR_ID = null;
+  // Retourne au team detail si on venait d'une équipe, sinon à la liste
+  renderEquipe();
+}
+
+function renderLeaderDetail(leaderId) {
+  const panel    = document.getElementById('equipePanel');
+  const journees = getFilteredJournees();
+  const leader   = DATA.users.find(u => u.id === leaderId);
+  if (!leader) { panel.innerHTML = emptyState('❓','Leader introuvable'); return; }
+
+  // Vendeurs de l'équipe
+  const teamVendeurs = DATA.users.filter(v => v.role === 'vendeur' && v.leader_id === leaderId);
+  const teamIds      = teamVendeurs.map(v => v.id);
+  const teamJ        = journees.filter(j => teamIds.includes(j.vendeur_id));
+
+  // Ventes personnelles du leader (il peut aussi vendre)
+  const myJ      = journees.filter(j => j.vendeur_id === leaderId)
+                           .sort((a,b) => b.date_journee.localeCompare(a.date_journee));
+  const myUnits  = sumCol(myJ, 'total_vendu');
+  const myCA     = sumCol(myJ, 'total_fcfa');
+  const myComm   = sumCol(myJ, 'commission_vendeur');
+
+  // Stats équipe
+  const teamCA    = sumCol(teamJ, 'total_fcfa');
+  const teamUnits = sumCol(teamJ, 'total_vendu');
+  const commRecu  = sumCol(teamJ, 'commission_leader');
+  const retraits  = DATA.retraits
+    .filter(r => r.user_id === leaderId && r.statut === 'valide')
+    .reduce((a,r) => a + (Number(r.montant)||0), 0);
+  const solde = commRecu - retraits;
+
+  // Vendeurs avec stats, triés par perf
+  const avatarColors = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6'];
+  const perfLabel = { fort:'🟢 Fort', moyen:'🟡 Moyen', faible:'🔴 Faible' };
+  const perfColor = { fort:'var(--accent)', moyen:'var(--amber)', faible:'var(--red)' };
+  const vendRows = teamVendeurs.map(v => {
+    const vJ    = journees.filter(j => j.vendeur_id === v.id);
+    const units = sumCol(vJ, 'total_vendu');
+    const ca    = sumCol(vJ, 'total_fcfa');
+    const comm  = sumCol(vJ, 'commission_vendeur');
+    let perf = units >= 20 ? 'fort' : units >= 7 ? 'moyen' : 'faible';
+    return { ...v, units, ca, comm, perf };
+  }).sort((a,b) => b.units - a.units);
+
+  const av = (leader.nom||'?')[0].toUpperCase();
+
+  // Bouton retour : si on vient d'une équipe → team detail, sinon → liste
+  const backLabel  = SELECTED_TEAM_ID ? `← Équipe ${leader.nom}` : '← Toutes les équipes';
+  const backAction = 'closeLeaderDetail()';
+
+  let html = `
+    <button class="back-btn" onclick="${backAction}">${backLabel}</button>
+
+    <div class="vd-header" style="background:linear-gradient(135deg,var(--purple),#7c3aed)">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+        <div class="vd-avatar" style="margin:0;flex-shrink:0">${av}</div>
+        <div>
+          <div class="vd-name" style="margin-bottom:2px">${leader.nom}</div>
+          <div style="display:inline-flex;align-items:center;gap:4px;background:rgba(255,255,255,.18);border-radius:20px;padding:3px 10px;font-size:10px;font-weight:700">🟣 Leader</div>
+        </div>
+      </div>
+      <div class="vd-sub" style="margin-bottom:10px">@${leader.identifiant} · ${teamVendeurs.filter(v=>v.actif).length}/${teamVendeurs.length} vendeurs actifs</div>
+      <div class="vd-kpi-grid" style="grid-template-columns:1fr 1fr">
+        <div class="vd-kpi">
+          <div class="vd-kpi-val">${fmt(teamCA)}</div>
+          <div class="vd-kpi-lbl">CA équipe</div>
+        </div>
+        <div class="vd-kpi">
+          <div class="vd-kpi-val">${fmtN(teamUnits)} u.</div>
+          <div class="vd-kpi-lbl">Unités équipe</div>
+        </div>
+        <div class="vd-kpi">
+          <div class="vd-kpi-val">${fmt(commRecu)}</div>
+          <div class="vd-kpi-lbl">Commissions</div>
+        </div>
+        <div class="vd-kpi">
+          <div class="vd-kpi-val" style="${solde<0?'color:#fca5a5':''}">${fmt(solde)}</div>
+          <div class="vd-kpi-lbl">Solde dispo</div>
+        </div>
+      </div>
+    </div>`;
+
+  // ── Ventes personnelles ──
+  if (myJ.length > 0) {
+    html += `
+    <div class="slabel">🛒 Ventes personnelles</div>
+    <div style="background:rgba(139,92,246,.07);border:1px solid rgba(139,92,246,.2);border-radius:12px;padding:13px;margin-bottom:12px">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center;margin-bottom:12px">
+        <div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:700;color:var(--purple)">${fmtN(myUnits)}</div>
+          <div style="font-size:8px;font-weight:700;text-transform:uppercase;color:var(--muted);margin-top:2px">Unités</div>
+        </div>
+        <div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:700;color:var(--purple)">${fmt(myCA)}</div>
+          <div style="font-size:8px;font-weight:700;text-transform:uppercase;color:var(--muted);margin-top:2px">CA perso</div>
+        </div>
+        <div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:700;color:var(--accent)">${fmt(myComm)}</div>
+          <div style="font-size:8px;font-weight:700;text-transform:uppercase;color:var(--muted);margin-top:2px">Comm.</div>
+        </div>
+      </div>
+      <div style="border-top:1px solid rgba(139,92,246,.15);padding-top:10px">
+        ${myJ.map((j,i) => `
+        <div class="jour-row" style="animation-delay:${i*0.03}s;margin-bottom:${i<myJ.length-1?'6px':'0'}">
+          <div class="jour-date">📅 ${fmtDateShort(j.date_journee)}</div>
+          <div class="jour-grid">
+            <div class="jour-stat"><div class="jour-stat-val">${fmtN(j.total_vendu)}</div><div class="jour-stat-lbl">Unités</div></div>
+            <div class="jour-stat"><div class="jour-stat-val" style="color:var(--accent)">${fmt(j.total_fcfa)}</div><div class="jour-stat-lbl">CA</div></div>
+            <div class="jour-stat"><div class="jour-stat-val" style="color:var(--blue)">${fmt(j.commission_vendeur)}</div><div class="jour-stat-lbl">Comm.</div></div>
+          </div>
+        </div>`).join('')}
+      </div>
+    </div>`;
+  }
+
+  // ── Vendeurs de l'équipe ──
+  html += `<div class="slabel">🛒 Vendeurs de l'équipe (${vendRows.length}) — cliquez pour la fiche</div>`;
+  if (!vendRows.length) {
+    html += emptyState('🛒','Aucun vendeur dans cette équipe');
+  } else {
+    html += vendRows.map((v, i) => {
+      const color = avatarColors[i % avatarColors.length];
+      const vav   = (v.nom||'?')[0].toUpperCase();
+      return `<div class="member-row" style="animation-delay:${i*0.04}s;cursor:pointer" onclick="openVendeurDetail('${v.id}','${leaderId}')">
+        <div class="member-avatar" style="background:${color}">${vav}</div>
+        <div style="flex:1;min-width:0">
+          <div class="member-name">${v.nom}</div>
+          <div class="member-sub">@${v.identifiant} · <span style="color:${perfColor[v.perf]};font-weight:700">${perfLabel[v.perf]}</span></div>
+        </div>
+        <div class="member-stats">
+          <div class="member-units">${fmtN(v.units)} u.</div>
+          <div class="member-ca">${fmt(v.ca)}</div>
+          <div style="font-size:9px;color:var(--accent)">${fmt(v.comm)} comm.</div>
+        </div>
+        <span style="color:var(--muted);font-size:16px;flex-shrink:0;margin-left:6px">›</span>
+      </div>`;
+    }).join('');
+  }
+
+  panel.innerHTML = html;
+}
+
+function openVendeurDetail(vendeurId, fromLeaderId) {
+  SELECTED_VENDEUR_ID = vendeurId;
+  SELECTED_TEAM_ID = fromLeaderId || null;
+  document.getElementById('main').scrollTo({ top: 0, behavior: 'smooth' });
+  renderEquipe();
+}
+
+function closeVendeurDetail() {
+  SELECTED_VENDEUR_ID = null;
+  // Si on venait d'un leader → retour fiche leader ; sinon team ou liste
+  renderEquipe();
+}
+
+function renderVendeurDetail(vendeurId, fromLeaderId) {
+  const panel   = document.getElementById('equipePanel');
+  const journees = getFilteredJournees();
+  const v = DATA.users.find(u => u.id === vendeurId);
+  if (!v) { panel.innerHTML = emptyState('❓','Vendeur introuvable'); return; }
+
+  const leader = v.leader_id ? getUserById(v.leader_id) : null;
+  const myJ    = journees.filter(j => j.vendeur_id === vendeurId)
+                         .sort((a,b) => b.date_journee.localeCompare(a.date_journee));
+
+  const totalUnits = sumCol(myJ, 'total_vendu');
+  const totalCA    = sumCol(myJ, 'total_fcfa');
+  const totalComm  = sumCol(myJ, 'commission_vendeur');
+
+  const av = (v.nom||'?')[0].toUpperCase();
+
+  // Bouton retour : leader detail si on vient d'un leader, sinon équipe
+  const backLabel = SELECTED_LEADER_ID
+    ? `← ${leader?.nom || 'Leader'}`
+    : fromLeaderId
+      ? `← Équipe ${leader?.nom || ''}`
+      : '← Toutes les équipes';
+
+  let html = `
+    <button class="back-btn" onclick="closeVendeurDetail()">${backLabel}</button>
+
+    <div class="vd-header">
+      <div class="vd-avatar">${av}</div>
+      <div class="vd-name">${v.nom}</div>
+      <div class="vd-sub">@${v.identifiant}</div>
+      ${leader ? `<div class="vd-sub">👑 Équipe ${leader.nom}</div>` : ''}
+      <div class="vd-kpi-grid">
+        <div class="vd-kpi"><div class="vd-kpi-val">${fmtN(totalUnits)}</div><div class="vd-kpi-lbl">Unités</div></div>
+        <div class="vd-kpi"><div class="vd-kpi-val">${fmt(totalCA).replace(' F','')}</div><div class="vd-kpi-lbl">CA</div></div>
+        <div class="vd-kpi"><div class="vd-kpi-val">${fmt(totalComm).replace(' F','')}</div><div class="vd-kpi-lbl">Comm.</div></div>
+      </div>
+    </div>
+
+    <div class="slabel">📅 Historique des journées (${myJ.length})</div>`;
+
+  if (!myJ.length) {
+    html += emptyState('📋', 'Aucune journée sur cette période');
+  } else {
+    html += myJ.map((j, i) => {
+      const profit = (Number(j.part_entreprise_nette)||0) - (Number(j.commission_leader)||0);
+      return `<div class="jour-row" style="animation-delay:${i*0.03}s">
+        <div class="jour-date">📅 ${fmtDate(j.date_journee)}</div>
+        <div class="jour-grid">
+          <div class="jour-stat"><div class="jour-stat-val">${fmtN(j.total_vendu)}</div><div class="jour-stat-lbl">Unités</div></div>
+          <div class="jour-stat"><div class="jour-stat-val" style="color:var(--accent)">${fmt(j.total_fcfa)}</div><div class="jour-stat-lbl">CA</div></div>
+          <div class="jour-stat"><div class="jour-stat-val" style="color:var(--blue)">${fmt(j.commission_vendeur)}</div><div class="jour-stat-lbl">Comm.</div></div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  panel.innerHTML = html;
 }
 
 /* ══════════════════════════════════════════
@@ -773,13 +1268,13 @@ function renderClassements() {
   // Top 3 leaders
   const topL = [...leaders].sort((a,b) => b.ca - a.ca).slice(0,3);
   document.getElementById('topLeaders').innerHTML = topL.length
-    ? topL.map((l,i) => rankCard(i+1, l.nom, `${fmtN(l.units)} unités · ${l.nbActifs} vendeurs`, fmt(l.ca))).join('')
+    ? topL.map((l,i) => rankCard(i+1, `${l.nom}`, `${fmtN(l.units)} unités · ${l.nbActifs} vendeurs actifs`, fmt(l.ca), `navigateToLeader('${l.id}')`)).join('')
     : emptyState('👑','Aucune donnée leader');
 
   // Top 3 vendeurs
   const topV = [...vendeurs].sort((a,b) => b.units - a.units).slice(0,3);
   document.getElementById('topVendeurs').innerHTML = topV.length
-    ? topV.map((v,i) => rankCard(i+1, v.nom, fmt(v.ca), fmtN(v.units)+' u.')).join('')
+    ? topV.map((v,i) => rankCard(i+1, v.nom, fmt(v.ca), fmtN(v.units)+' u.', `navigateToVendeur('${v.id}')`)).join('')
     : emptyState('🛒','Aucune donnée vendeur');
 
   // Inactifs > 7j
@@ -806,13 +1301,41 @@ function renderClassements() {
     : emptyState('✅','Tous les vendeurs sont actifs');
 }
 
-function rankCard(pos, nom, sub, val) {
+function navigateToTeam(leaderId) {
+  ACTIVE_TAB = 'equipe';
+  SELECTED_TEAM_ID = leaderId;
+  SELECTED_LEADER_ID = null;
+  SELECTED_VENDEUR_ID = null;
+  goTab('equipe');
+}
+
+function navigateToLeader(leaderId) {
+  ACTIVE_TAB = 'equipe';
+  SELECTED_LEADER_ID = leaderId;
+  SELECTED_TEAM_ID = null; // pas de team parent, retour → liste
+  SELECTED_VENDEUR_ID = null;
+  goTab('equipe');
+}
+
+function navigateToVendeur(vendeurId) {
+  const u = DATA.users.find(x => x.id === vendeurId);
+  ACTIVE_TAB = 'equipe';
+  SELECTED_TEAM_ID = u?.leader_id || null;
+  SELECTED_VENDEUR_ID = vendeurId;
+  SELECTED_LEADER_ID = null;
+  goTab('equipe');
+}
+
+function rankCard(pos, nom, sub, val, clickFn) {
   const cls = pos===1?'rn-1':pos===2?'rn-2':pos===3?'rn-3':'rn-x';
   const medal= pos===1?'🥇':pos===2?'🥈':pos===3?'🥉':pos;
-  return `<div class="rank-card" style="animation-delay:${pos*0.05}s">
+  const onclick = clickFn ? `onclick="${clickFn}"` : '';
+  const arrow = clickFn ? `<span style="color:var(--muted);font-size:16px;flex-shrink:0">›</span>` : '';
+  return `<div class="rank-card" style="animation-delay:${pos*0.05}s" ${onclick}>
     <div class="rank-num ${cls}">${medal}</div>
     <div class="rank-info"><div class="rank-name">${nom}</div><div class="rank-sub">${sub}</div></div>
     <div class="rank-val">${val}</div>
+    ${arrow}
   </div>`;
 }
 
@@ -829,7 +1352,7 @@ function renderAlertes() {
   const now = new Date();
 
   // CA en baisse vs période précédente
-  if (PERIOD !== 'all') {
+  if (DATE_FROM && DATE_TO) {
     const prevJ = getPreviousPeriodJournees();
     const curCA  = sumCol(journees, 'total_fcfa');
     const prevCA = sumCol(prevJ, 'total_fcfa');
@@ -914,7 +1437,7 @@ function renderHistorique() {
 
   const tb = document.getElementById('histTable');
   if (!slice.length) {
-    tb.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--muted)">Aucune journée</td></tr>`;
+    tb.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--muted)">Aucune journée</td></tr>`;
     document.getElementById('pagination').innerHTML = '';
     return;
   }
@@ -932,7 +1455,6 @@ function renderHistorique() {
       <td class="mono pos">${fmt(j.commission_vendeur)}</td>
       <td class="mono" style="color:var(--amber)">${fmt(j.commission_leader)}</td>
       <td class="mono ${profit>=0?'pos':'neg'}">${fmt(profit)}</td>
-      <td class="mono ${j.pertes>0?'neg':'muted'}">${j.pertes||0}</td>
     </tr>`;
   }).join('');
 
@@ -955,12 +1477,14 @@ function goHist(page) {
    NAVIGATION
 ══════════════════════════════════════════ */
 function goTab(tab) {
+  if (ACTIVE_TAB !== tab) { SELECTED_TEAM_ID = null; SELECTED_VENDEUR_ID = null; SELECTED_LEADER_ID = null; }
   ACTIVE_TAB = tab;
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('on'));
   document.querySelectorAll('.ni').forEach(n => n.classList.remove('on'));
   document.getElementById('tab-' + tab).classList.add('on');
   document.getElementById('nv-' + tab).classList.add('on');
   document.getElementById('main').scrollTo({ top:0, behavior:'smooth' });
+  if (tab === 'equipe') renderEquipe();
 }
 
 /* ══════════════════════════════════════════
