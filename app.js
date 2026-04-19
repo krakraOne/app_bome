@@ -475,16 +475,12 @@ function injectManagerShell(sess) {
 
 /* ── Lancer le dashboard manager inline ── */
 function launchManagerApp(sess) {
+  // Navigation directe — évite document.write() qui cause des conflits de scope
+  // La session est déjà dans localStorage, le dashboard la lira au démarrage
   showTransition(sess.nom, sess.role);
-  const appUrl = 'bome_manager_dashboard.html';
-  fetch(appUrl)
-    .then(r => { if (!r.ok) throw new Error(); return r.text(); })
-    .then(html => {
-      document.open(); document.write(html); document.close();
-    })
-    .catch(() => {
-      injectManagerShell(sess);
-    });
+  setTimeout(() => {
+    window.location.href = 'bome_manager_dashboard.html';
+  }, 900);
 }
 
 
