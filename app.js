@@ -27,7 +27,11 @@ window.addEventListener('load', async () => {
   document.getElementById('loader').classList.add('out');
 
   if (sess) {
-    const valid = await validateSession(sess);
+    // Timeout 3s : si Supabase ne répond pas, on efface la session et on affiche le login
+    const valid = await Promise.race([
+      validateSession(sess),
+      new Promise(r => setTimeout(() => r(false), 3000))
+    ]);
     if (valid) { showApp(sess); return; }
     clearSession();
   }
@@ -77,9 +81,9 @@ function selectRole(role) {
   const rc = document.querySelector(`.rc[data-role="${role}"]`);
   if (rc) rc.classList.add('on');
 
-  // Panels
-  document.getElementById('panelPin').classList.toggle('on', role !== 'manager');
-  document.getElementById('panelEmail').classList.toggle('on', role === 'manager');
+  // Panels — manager utilise désormais le panel PIN comme les autres rôles
+  document.getElementById('panelPin').classList.add('on');
+  document.getElementById('panelEmail').classList.remove('on');
 
   // Style numpad dots according to role
   document.querySelectorAll('.pdot').forEach(d => {
@@ -101,15 +105,11 @@ function selectRole(role) {
   hideBlocked();
 
   // Focus
-  if (role !== 'manager') {
-    setTimeout(() => {
-      const i = document.getElementById('pinIdent');
-      if (!i.value) i.focus();
-      else focusPad();
-    }, 200);
-  } else {
-    setTimeout(() => document.getElementById('mgrEmail').focus(), 200);
-  }
+  setTimeout(() => {
+    const i = document.getElementById('pinIdent');
+    if (!i.value) i.focus();
+    else focusPad();
+  }, 200);
 }
 
 /* ═══ SAVED USER HINT ═══ */
@@ -264,12 +264,6 @@ async function doLoginPin() {
       return;
     }
 
-    // ④ Vérification supplémentaire : manager ne peut PAS utiliser le panel PIN
-    if (realRole === 'manager') {
-      handleFailedAttempt(ident, true);
-      return;
-    }
-
     // ✅ SUCCÈS
     resetAttempts(ident);
     await logSuccess(ident, realRole);
@@ -312,7 +306,7 @@ function handleFailedAttempt(ident, silent = false) {
    LOGIN — MANAGER (Email + MDP)
 ═══════════════════════════════ */
 async function doLoginEmail() {
-  const email = document.getElementById('mgrEmail').value.trim();
+  const email = document.getElementById('mgrEmail').value.trim().toLowerCase();
   const pwd   = document.getElementById('mgrPwd').value;
   if (!email || !pwd) { showErr('Remplissez tous les champs.'); return; }
 
@@ -323,58 +317,76 @@ async function doLoginEmail() {
   hideErr(); hideBlocked();
 
   try {
-    // ① Auth Supabase native
+    // ① Auth Supabase (email + mot de passe)
     const { data: authData, error: authErr } = await sb.auth.signInWithPassword({ email, password: pwd });
 
     if (authErr || !authData?.user) {
+      console.error('Auth error:', authErr);
       const d = incrAttempts('mgr_' + email);
       if (d.n >= MAX_TRIES) showBlocked(d.until);
-      else showErr('Identifiants invalides.' + (MAX_TRIES - d.n > 0 ? ' (' + (MAX_TRIES - d.n) + ' essai(s) restant)' : ''));
+      else showErr('Email ou mot de passe incorrect. (' + (MAX_TRIES - d.n) + ' essai(s) restant)');
       return;
     }
 
-    // ② Récupérer le profil et vérifier le rôle RÉEL côté DB
-    const { data: rows, error: profErr } = await sb
+    // ② Chercher le profil dans la table users par identifiant = email
+    let user = null;
+
+    const { data: byIdent, error: e1 } = await sb
       .from('users')
-      .select('id, nom, identifiant, role, actif')
-      .or(`id.eq.${authData.user.id},auth_uid.eq.${authData.user.id}`)
+      .select('id, nom, identifiant, role, actif, leader_id')
+      .eq('identifiant', email)
       .eq('actif', true)
       .limit(1);
 
-    // Fallback : chercher par email/identifiant
-    let user = rows?.[0];
+    if (!e1 && byIdent?.length) {
+      user = byIdent[0];
+    }
+
+    // Fallback : chercher par identifiant sans le filtre actif (manager peut être mal configuré)
     if (!user) {
-      const { data: rows2 } = await sb
+      const { data: byIdent2 } = await sb
         .from('users')
-        .select('id, nom, identifiant, role, actif')
+        .select('id, nom, identifiant, role, actif, leader_id')
         .eq('identifiant', email)
+        .limit(1);
+      if (byIdent2?.length) user = byIdent2[0];
+    }
+
+    // Dernier fallback : chercher par role=manager ou Manager parmi les actifs
+    if (!user) {
+      const { data: byRole } = await sb
+        .from('users')
+        .select('id, nom, identifiant, role, actif, leader_id')
+        .in('role', ['manager', 'admin', 'Manager', 'Admin'])
         .eq('actif', true)
         .limit(1);
-      user = rows2?.[0];
+      if (byRole?.length) user = byRole[0];
     }
 
     if (!user) {
       await sb.auth.signOut();
-      showErr('Identifiants invalides.');
+      showErr('Compte manager introuvable. Vérifiez la table users.');
       return;
     }
 
-    // ③ CRITIQUE : rôle sélectionné = 'manager' → vérifier que le rôle DB est manager ou admin
-    if (!['manager', 'admin'].includes(user.role)) {
+    // ③ Vérifier que le rôle est bien manager/admin (insensible à la casse)
+    const roleNorm = (user.role || '').toLowerCase();
+    if (!['manager', 'admin'].includes(roleNorm)) {
       await sb.auth.signOut();
-      await sb.from('admin_logs').insert({
-        event_type: 'role_mismatch',
-        identifiant: email,
-        role_claimed: 'manager',
-        details: { real_role: user.role }
-      });
-      showErr('Identifiants invalides.');
+      showErr('Ce compte n\'a pas les droits manager.');
+      return;
+    }
+    // Normaliser le rôle pour la session
+    user.role = roleNorm;
+
+    if (!user.actif) {
+      await sb.auth.signOut();
+      showErr('Ce compte est désactivé.');
       return;
     }
 
     // ✅ SUCCÈS
     resetAttempts('mgr_' + email);
-    await logSuccess(email, user.role);
 
     const session = buildSession(user, authData.session?.access_token);
     saveSession(session);
@@ -384,8 +396,8 @@ async function doLoginEmail() {
     redirectByRole(user.role, session);
 
   } catch (e) {
-    console.error(e);
-    showErr('Erreur de connexion. Réessayez.');
+    console.error('doLoginEmail error:', e);
+    showErr('Erreur de connexion : ' + (e.message || 'réessayez.'));
   } finally {
     setLoading('btnEmail', false);
   }
@@ -434,7 +446,7 @@ async function validateSession(sess) {
       .single();
     console.log('session check', data, error);
     if (error || !data) return false;
-    return data.actif === true && data.role === sess.role;
+    return data.actif === true && (data.role || '').toLowerCase() === (sess.role || '').toLowerCase();
   } catch (e) { console.error('validateSession error', e); return false; }
 }
 
@@ -673,11 +685,8 @@ function fillTest(ident, pin, role) {
   lToast('🧪 Test : ' + ident + ' · PIN ' + pin, 'info');
 }
 
-function fillTestEmail(email, pwd) {
-  selectRole('manager');
-  document.getElementById('mgrEmail').value = email;
-  document.getElementById('mgrPwd').value = pwd;
-  lToast('🧪 Test manager prérempli', 'info');
+function fillTestEmail(ident, pin) {
+  fillTest(ident, pin, 'manager');
 }
 
 /* ═══ SQL INSERT MODAL ═══ */
@@ -691,7 +700,7 @@ async function openSqlInsert() {
   if (!_sqlInsertTemplate) _sqlInsertTemplate = pre.textContent;
 
   // Calculer les vrais hashes en temps réel
-  const pins = { '1234': null, '2222': null, '3333': null, '5678': null, '9999': null };
+  const pins = { '0000': null, '1234': null, '2222': null, '3333': null, '5678': null, '9999': null };
   for (const pin of Object.keys(pins)) {
     pins[pin] = await hashPin(pin);
   }
@@ -699,6 +708,7 @@ async function openSqlInsert() {
   // Afficher les hashes
   const disp = document.getElementById('sqlHashDisplay');
   disp.textContent =
+    'PIN 0000  →  ' + pins['0000'] + '\n' +
     'PIN 1234  →  ' + pins['1234'] + '\n' +
     'PIN 2222  →  ' + pins['2222'] + '\n' +
     'PIN 3333  →  ' + pins['3333'] + '\n' +
@@ -707,6 +717,7 @@ async function openSqlInsert() {
 
   // Toujours repartir du template original pour éviter les doubles remplacements
   let sql = _sqlInsertTemplate;
+  sql = sql.replace('___HASH_0000___', pins['0000']);
   sql = sql.replace('___HASH_1234___', pins['1234']);
   sql = sql.replace('___HASH_2222___', pins['2222']);
   sql = sql.replace('___HASH_3333___', pins['3333']);
