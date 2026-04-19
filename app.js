@@ -53,6 +53,8 @@ function showApp(sess) {
     initApp();
   } else if (['manager', 'admin'].includes(sess.role)) {
     launchManagerApp(sess);
+  } else if (['chef', 'chef_famille'].includes(sess.role)) {
+    launchChefApp(sess);
   } else {
     showErr('Rôle non reconnu.');
     clearSession();
@@ -93,7 +95,7 @@ function selectRole(role) {
 
   // Bouton couleur
   const btn = document.getElementById('btnPin');
-  btn.className = 'btn-submit ' + (role === 'vendeur' ? 'bs-v' : role === 'leader' ? 'bs-l' : 'bs-m');
+  btn.className = 'btn-submit ' + (role === 'vendeur' ? 'bs-v' : role === 'leader' ? 'bs-l' : role === 'chef' ? 'bs-c' : 'bs-m');
   btn.disabled = true;
 
   // Reset PIN buffer
@@ -252,7 +254,9 @@ async function doLoginPin() {
 
     // ③ CRITIQUE : vérifier que le rôle RÉEL correspond au rôle sélectionné
     const realRole = user.role;
-    if (realRole !== ROLE) {
+    // chef et chef_famille sont équivalents (UI utilise 'chef', DB peut stocker l'un ou l'autre)
+    const normalizeRole = r => (['chef','chef_famille'].includes(r) ? 'chef' : r);
+    if (normalizeRole(realRole) !== normalizeRole(ROLE)) {
       // Rôle frauduleux — log + refus générique
       await sb.from('admin_logs').insert({
         event_type: 'role_mismatch',
@@ -456,6 +460,8 @@ function redirectByRole(role, sess) {
     showApp(sess);
   } else if (['manager', 'admin'].includes(role)) {
     launchManagerApp(sess);
+  } else if (['chef', 'chef_famille'].includes(role)) {
+    launchChefApp(sess);
   } else {
     showErr('Rôle non reconnu.');
     clearSession();
@@ -483,6 +489,14 @@ function launchManagerApp(sess) {
   }, 900);
 }
 
+/* ── Lancer le dashboard chef de famille ── */
+function launchChefApp(sess) {
+  showTransition(sess.nom, sess.role);
+  setTimeout(() => {
+    window.location.href = 'bome_chef_dashboard.html';
+  }, 900);
+}
+
 
 function getManagerShellHTML(sess) {
   return `<!DOCTYPE html><html lang="fr"><head>
@@ -497,7 +511,7 @@ function getManagerShellHTML(sess) {
 body{font-family:'Bricolage Grotesque',sans-serif;background:var(--bg);color:var(--ink);min-height:100vh}
 .topbar{background:rgba(10,15,20,.95);border-bottom:1px solid var(--bd);padding:0 20px;height:58px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
 .tb-brand{display:flex;align-items:center;gap:10px}
-.tb-ico{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--green),var(--g2));display:flex;align-items:center;justify-content:center;font-size:17px}
+.tb-ico{width:34px;height:34px;border-radius:9px;overflow:hidden;flex-shrink:0}
 .tb-name{font-size:.95rem;font-weight:800}.tb-name span{color:var(--green)}
 .content{padding:24px 20px;max-width:1200px;margin:0 auto}
 .hero{background:linear-gradient(135deg,#0a1a12,#0c1622);border:1px solid var(--bd);border-radius:20px;padding:28px;margin-bottom:22px}
@@ -530,7 +544,7 @@ tbody tr:hover td{background:rgba(255,255,255,.03)}
 </style></head><body>
 <div class="topbar">
   <div class="tb-brand">
-    <div class="tb-ico">🧴</div>
+    <div class="tb-ico"><img src="logo.png" style="width:100%;height:100%;object-fit:cover;border-radius:9px;display:block"></div>
     <div class="tb-name">Bome <span>François</span></div>
   </div>
   <div style="display:flex;align-items:center;gap:10px">
@@ -920,7 +934,7 @@ function startDay(){
   if(S.started){toast('⚠️ Clôturez d\'abord','error');return;}
   const v=parseInt(document.getElementById('stockQty').value)||0;
   if(v<=0){toast('⚠️ Stock invalide','error');return;}
-  S.stock=v;S.objectif=Math.max(0,parseInt(document.getElementById('inputObjectif').value)||0);S.N={cash:0,wave:0,orange:0};S.started=true;S.openTs=Date.now();
+  S.stock=v;S.objectif=Math.max(0,parseInt(document.getElementById('inputObjectif').value)||0);S.N={cash:0,wave:0,orange:0};S.pertes=0;S.started=true;S.openTs=Date.now();
   document.getElementById('btnCorrect').style.display='flex';
   startAutoWatch();startSince();upd();toast('✅ Journée ouverte — '+v+' unités','success');
 }
@@ -930,6 +944,9 @@ function ad(t){if(!S.started){toast("Ouvrez d'abord la journée",'info');return;
 function rm(t){if(S.N[t]<=0)return;S.N[t]--;bumpEl(t+'N');upd();}
 function annuler(){if(!S.history.length)return;const t=S.history.pop();if(S.N[t]>0)S.N[t]--;bumpEl(t+'N');upd();toast('↩️ Annulé','info');}
 function sc(t){if(!S.started){toast("Ouvrez d'abord",'info');return;}const el=document.getElementById(t+'N');let v=parseInt(el.value)||0;if(v<0)v=0;const o=used()-S.N[t];if(o+v>S.stock){v=S.stock-o;toast('⚠️ Limité à '+S.stock,'error');}S.N[t]=v;upd();}
+function adP(){if(!S.started){toast("Ouvrez d'abord la journée",'info');return;}if(!S.pertes)S.pertes=0;S.pertes++;bumpEl('pertesN');upd();}
+function rmP(){if(!S.pertes||S.pertes<=0)return;S.pertes--;bumpEl('pertesN');upd();}
+function scP(){if(!S.started){toast("Ouvrez d'abord",'info');return;}const el=document.getElementById('pertesN');let v=parseInt(el.value)||0;if(v<0)v=0;S.pertes=v;upd();}
 function bumpEl(id){const el=document.getElementById(id);el.classList.remove('bump');void el.offsetWidth;el.classList.add('bump');setTimeout(()=>el.classList.remove('bump'),280);}
 
 // Correction avant clôture
@@ -949,6 +966,8 @@ function upd(){
   document.getElementById('cashAmt').textContent=fmt(S.N.cash*PRICE)+' FCFA';
   document.getElementById('waveAmt').textContent=fmt(S.N.wave*PRICE)+' FCFA';
   document.getElementById('orangeAmt').textContent=fmt(S.N.orange*PRICE)+' FCFA';
+  const pEl=document.getElementById('pertesN');if(pEl)pEl.value=S.pertes||0;
+  const pAmt=document.getElementById('pertesAmt');if(pAmt)pAmt.textContent=(S.pertes||0)+' unité(s) abîmée(s)';
   document.getElementById('fStock').textContent=S.stock;
   document.getElementById('fSold').textContent=s;
   document.getElementById('fRemain').textContent=rem;
@@ -1008,7 +1027,7 @@ async function terminerJournee(auto=false){
     vendeur_id:S.profile.id,
     date_journee:now.toISOString().split('T')[0],
     date_label:now.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'}),
-    stock_initial:S.stock,vendu_cash:S.N.cash,vendu_wave:S.N.wave,vendu_orange:S.N.orange,
+    stock_initial:S.stock,vendu_cash:S.N.cash,vendu_wave:S.N.wave,vendu_orange:S.N.orange,pertes:S.pertes||0,
     total_vendu:s,restants:Math.max(0,S.stock-used()),
     total_fcfa:r.tot,part_entreprise:Math.round(r.tot*.6),part_entreprise_nette:r.ent,
     commission_vendeur:r.me,commission_leader:r.lead,
@@ -1021,7 +1040,7 @@ async function terminerJournee(auto=false){
 }
 async function doAutoClose(){S.started=true;await terminerJournee(true);}
 function resetDay(){
-  S.started=false;S.stock=0;S.N={cash:0,wave:0,orange:0};S.openTs=null;
+  S.started=false;S.stock=0;S.N={cash:0,wave:0,orange:0};S.pertes=0;S.openTs=null;
   if(S.autoInt)clearInterval(S.autoInt);if(S.sinceInt)clearInterval(S.sinceInt);
   document.getElementById('autoAlert').style.display='none';
   document.getElementById('btnCorrect').style.display='none';
