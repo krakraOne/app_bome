@@ -60,7 +60,12 @@
     <div class="rc" data-role="manager" onclick="selectRole('manager')">
       <span class="rc-ico">🧑‍💼</span>
       <span class="rc-lbl">Manager</span>
-      <span class="rc-sub">Email + MDP</span>
+      <span class="rc-sub">PIN 4 chiffres</span>
+    </div>
+    <div class="rc" data-role="chef" onclick="selectRole('chef')">
+      <span class="rc-ico">🏅</span>
+      <span class="rc-lbl">Chef famille</span>
+      <span class="rc-sub">PIN 4 chiffres</span>
     </div>
   </div>
 
@@ -115,27 +120,6 @@
     </button>
   </div>
 
-  <!-- ── Panel : Manager (email + mot de passe) ── -->
-  <div class="panel" id="panelEmail">
-    <div class="fgrp">
-      <label>Adresse email</label>
-      <input class="finp" type="email" id="mgrEmail"
-        placeholder="manager@bomefrancois.com"
-        autocorrect="off" autocapitalize="none">
-    </div>
-    <div class="fgrp">
-      <label>Mot de passe</label>
-      <div class="pw-wrap">
-        <input class="finp" type="password" id="mgrPwd"
-          placeholder="••••••••"
-          onkeydown="if(event.key==='Enter')doLoginEmail()">
-        <button class="eye" type="button" onclick="togglePwd()" id="eyeBtn" aria-label="Afficher">👁️</button>
-      </div>
-    </div>
-    <button class="btn-submit bs-m" id="btnEmail" onclick="doLoginEmail()">
-      <span class="btn-txt">🔓 Se connecter</span>
-    </button>
-  </div>
 
   <!-- Error box -->
   <div class="err-box" id="errBox">
@@ -478,7 +462,21 @@ VALUES (
   true
 ) ON CONFLICT (identifiant) DO NOTHING;
 
--- 6. Manager Principal (PIN: 0000)
+-- 6. Chef de Famille (PIN: 7777)
+INSERT INTO users (nom, identifiant, pin_hash, role, actif)
+VALUES (
+  'Chef Ibrahima',
+  'chef_ibra',
+  '___HASH_7777___',
+  'chef_famille',
+  true
+) ON CONFLICT (identifiant) DO NOTHING;
+
+-- Lier les leaders au chef (exécuter après l'INSERT ci-dessus)
+UPDATE users SET chef_id = (SELECT id FROM users WHERE identifiant = 'chef_ibra')
+WHERE identifiant IN ('oumar_l', 'aissatou_l');
+
+-- 7. Manager Principal (PIN: 0000)
 INSERT INTO users (nom, identifiant, pin_hash, role, actif)
 VALUES (
   'Manager Principal',
@@ -595,9 +593,10 @@ VALUES (
           <div class="srow"><div class="sleft"><div class="sico ico-c">💵</div><div><div class="sname" style="color:var(--accent)">Espèces</div><div class="samt" id="cashAmt">0 FCFA</div></div></div><div class="sctrl"><button class="cb cbm" onclick="rm('cash')">−</button><input class="cin" type="number" id="cashN" value="0" min="0" inputmode="numeric" onchange="sc('cash')"><button class="cb cbp" onclick="ad('cash')">+</button></div></div>
           <div class="srow"><div class="sleft"><div class="sico ico-w">📲</div><div><div class="sname" style="color:var(--blue)">Wave</div><div class="samt" id="waveAmt">0 FCFA</div></div></div><div class="sctrl"><button class="cb cbm" onclick="rm('wave')">−</button><input class="cin" type="number" id="waveN" value="0" min="0" inputmode="numeric" onchange="sc('wave')"><button class="cb cbp" onclick="ad('wave')">+</button></div></div>
           <div class="srow"><div class="sleft"><div class="sico ico-o">🟠</div><div><div class="sname" style="color:var(--orange)">Orange Money</div><div class="samt" id="orangeAmt">0 FCFA</div></div></div><div class="sctrl"><button class="cb cbm" onclick="rm('orange')">−</button><input class="cin" type="number" id="orangeN" value="0" min="0" inputmode="numeric" onchange="sc('orange')"><button class="cb cbp" onclick="ad('orange')">+</button></div></div>
+          <div class="srow"><div class="sleft"><div class="sico" style="background:rgba(239,68,68,.12);color:var(--red)">🩹</div><div><div class="sname" style="color:var(--red)">Pertes</div><div class="samt" id="pertesAmt">0 unité(s) abîmée(s)</div></div></div><div class="sctrl"><button class="cb cbm" onclick="rmP()">−</button><input class="cin" type="number" id="pertesN" value="0" min="0" inputmode="numeric" onchange="scP()"><button class="cb cbp" onclick="adP()">+</button></div></div>
         </div>
         <button class="btn btn-ghost btn-w" id="btnCorrect" onclick="openMod('mCorrect')" style="margin-top:8px;font-size:12px;display:none">✏️ Corriger une quantité</button>
-        <button class="btn btn-ghost btn-w" id="btnAnnuler" onclick="annuler()" style="margin-top:6px;font-size:12px;opacity:.35" disabled>↩️ Annuler la dernière vente</button>
+        <button class="btn btn-ghost btn-w" id="btnAnnuler" onclick="openMod('mAnnuler')" style="margin-top:6px;font-size:12px;opacity:.35" disabled>↩️ Annuler la dernière vente</button>
       </div>
 
       <div class="slabel">📈 Résumé</div>
@@ -772,6 +771,17 @@ VALUES (
   <div class="field"><label>Nouvelle quantité</label><input class="finp" type="number" id="corrVal" placeholder="0" min="0" inputmode="numeric"></div>
   <div id="corrErr" style="font-size:12px;color:var(--red);font-weight:700;margin-bottom:8px;display:none"></div>
   <div class="macts"><button class="mbtn mbtn-c" onclick="closeMod('mCorrect')">Annuler</button><button class="mbtn mbtn-ok" onclick="doCorrect()">✅ Appliquer</button></div>
+</div></div>
+
+<!-- Confirmation annulation -->
+<div class="mbg" id="mAnnuler"><div class="msheet">
+  <div class="mhandle"></div>
+  <div class="mtitle">↩️ Annuler la dernière vente ?</div>
+  <div style="font-size:13px;color:var(--muted);margin-bottom:16px">Cette action retirera la dernière vente enregistrée. Voulez-vous continuer ?</div>
+  <div class="macts">
+    <button class="mbtn mbtn-c" onclick="closeMod('mAnnuler')">Non, garder</button>
+    <button class="mbtn mbtn-red" onclick="annuler();closeMod('mAnnuler')">↩️ Oui, annuler</button>
+  </div>
 </div></div>
 
 <!-- Validation PIN leader -->
