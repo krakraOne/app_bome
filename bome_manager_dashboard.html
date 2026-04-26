@@ -171,6 +171,7 @@ tbody tr:hover td{background:rgba(16,185,129,.03)}
 .mbtn-cancel{background:var(--bg);color:var(--muted);border:1px solid var(--border)}
 .mbtn-confirm-ok{background:linear-gradient(135deg,var(--accent),var(--a2));color:#fff}
 .mbtn-confirm-red{background:var(--red);color:#fff}
+.mbtn-confirm-amber{background:linear-gradient(135deg,#f59e0b,#d4870a);color:#fff}
 .mbtn:active{transform:scale(.95)}
 
 /* ── Toast ── */
@@ -255,6 +256,9 @@ nav{position:fixed;bottom:0;left:0;right:0;height:calc(var(--nav) + env(safe-are
 .member-units{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;color:var(--accent)}
 .member-ca{font-size:10px;color:var(--muted);margin-top:1px}
 .leader-tag{background:rgba(139,92,246,.12);color:var(--purple);border:1px solid rgba(139,92,246,.2);border-radius:20px;padding:2px 7px;font-size:9px;font-weight:700;margin-left:5px;vertical-align:middle}
+.chef-tag{background:rgba(245,166,35,.15);color:var(--amber);border:1px solid rgba(245,166,35,.3);border-radius:20px;padding:2px 7px;font-size:9px;font-weight:700;margin-left:5px;vertical-align:middle}
+.tc-chef{border:1.5px solid rgba(245,166,35,.4);background:linear-gradient(135deg,rgba(245,166,35,.06),rgba(245,166,35,.02))}
+.tc-avatar-chef{background:linear-gradient(135deg,var(--amber),#d4870a) !important}
 .team-card{background:var(--card);border-radius:var(--r);padding:14px;margin-bottom:10px;box-shadow:var(--sh);border:1px solid var(--border);cursor:pointer;animation:fadeUp .3s ease both;transition:transform .12s,box-shadow .12s}
 .team-card:active{transform:scale(.98);box-shadow:none}
 .tc-top{display:flex;align-items:center;gap:10px;margin-bottom:10px}
@@ -417,6 +421,38 @@ nav{position:fixed;bottom:0;left:0;right:0;height:calc(var(--nav) + env(safe-are
   </div>
 </div>
 
+<!-- ══ MODAL PROMOTION CHEF DE FAMILLE ══ -->
+<div class="modal-bg" id="promoModalBg" onclick="if(event.target===this)closePromoModal()">
+  <div class="modal">
+    <div style="text-align:center;margin-bottom:14px">
+      <div style="width:52px;height:52px;border-radius:14px;background:linear-gradient(135deg,#f59e0b,#d4870a);
+        display:inline-flex;align-items:center;justify-content:center;font-size:24px;
+        box-shadow:0 4px 14px rgba(245,158,11,.35)">👑</div>
+    </div>
+    <div class="modal-title" id="promoModalTitle" style="text-align:center"></div>
+    <div class="modal-msg" id="promoModalMsg" style="text-align:center"></div>
+    <div style="margin-bottom:16px">
+      <label style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);display:block;margin-bottom:6px">
+        🔐 Mot de passe manager pour confirmer
+      </label>
+      <div style="position:relative">
+        <input type="password" id="promoPwd" placeholder="Votre mot de passe"
+          style="width:100%;padding:12px 40px 12px 14px;border:1.5px solid var(--border);border-radius:10px;
+            font-family:'Syne',sans-serif;font-size:14px;background:var(--bg);color:var(--ink);outline:none"
+          oninput="document.getElementById('promoErr').style.display='none'"
+          onkeydown="if(event.key==='Enter')confirmPromotion()">
+        <button onclick="const i=document.getElementById('promoPwd');i.type=i.type==='password'?'text':'password'"
+          style="position:absolute;right:10px;top:50%;transform:translateY(-50%);border:none;background:none;cursor:pointer;font-size:16px;color:var(--muted)">👁</button>
+      </div>
+      <div id="promoErr" style="display:none;color:var(--red);font-size:12px;font-weight:700;margin-top:6px"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="mbtn mbtn-cancel" onclick="closePromoModal()">Annuler</button>
+      <button class="mbtn mbtn-confirm-amber" id="promoBtn" onclick="confirmPromotion()">👑 Promouvoir</button>
+    </div>
+  </div>
+</div>
+
 <!-- ══ TOAST ══ -->
 <div class="toast" id="toast"></div>
 
@@ -450,8 +486,10 @@ let SEARCH_QUERY = '';
 let SELECTED_TEAM_ID = null;
 let SELECTED_VENDEUR_ID = null;
 let SELECTED_LEADER_ID = null;
+let TEAM_PERF_FROM = null;
+let TEAM_PERF_TO   = null;
 
-const DATA = { users: [], journees: [], retraits: [] };
+const DATA = { users: [], journees: [], retraits: [], logs: [] };
 
 /* ══════════════════════════════════════════
    BOOT
@@ -527,14 +565,24 @@ function showApp() {
 async function loadData() {
   setLdTxt('Chargement des données…');
   const client = getSb();
-  const [u, j, r] = await Promise.all([
-    client.from('users').select('*'),
-    client.from('journees').select('*').order('date_journee', { ascending: false }),
-    client.from('retraits').select('*').order('created_at', { ascending: false })
+
+  // Chaque requête gérée individuellement pour éviter qu'une erreur bloque tout
+  const safeQuery = async (q) => {
+    try { const r = await q; return r.data || []; }
+    catch(e) { console.warn('[loadData] erreur requête:', e.message); return []; }
+  };
+
+  const [users, journees, retraits, logs] = await Promise.all([
+    safeQuery(client.from('users').select('*')),
+    safeQuery(client.from('journees').select('*').order('date_journee', { ascending: false })),
+    safeQuery(client.from('retraits').select('*').order('created_at', { ascending: false })),
+    safeQuery(client.from('admin_logs').select('*').order('created_at', { ascending: false }).limit(200)),
   ]);
-  DATA.users    = u.data  || [];
-  DATA.journees = j.data  || [];
-  DATA.retraits = r.data  || [];
+
+  DATA.users    = users;
+  DATA.journees = journees;
+  DATA.retraits = retraits;
+  DATA.logs     = logs;
   populateFilters();
 }
 
@@ -834,6 +882,34 @@ function onSearch() {
   renderEquipe();
 }
 
+/* ── Statistiques par équipe (chef de famille) ── */
+function getTeamStats() {
+  const journees = getFilteredJournees();
+  // Chefs de famille = role 'chef_famille' OU leaders avec is_chef_famille = true
+  const chefs = DATA.users.filter(u => u.role === 'chef_famille' || (u.role === 'leader' && u.is_chef_famille === true));
+  return chefs.map(chef => {
+    let teamLeaders  = DATA.users.filter(u => u.role === 'leader' && u.leader_valide && u.chef_famille_id === chef.id && u.id !== chef.id);
+    let teamVendeurs = DATA.users.filter(u => u.role === 'vendeur' && u.chef_famille_id === chef.id);
+    // Fallback : chef_famille_id pas encore configuré → utiliser leader_id
+    if (teamLeaders.length === 0 && teamVendeurs.length === 0) {
+      teamVendeurs = DATA.users.filter(u => u.role === 'vendeur' && u.leader_id === chef.id);
+    }
+    const allIds = [chef.id, ...teamLeaders.map(l=>l.id), ...teamVendeurs.map(v=>v.id)];
+    const teamJ  = journees.filter(j => allIds.includes(j.vendeur_id));
+    const ca     = sumCol(teamJ, 'total_fcfa');
+    const units  = sumCol(teamJ, 'total_vendu');
+    const comm   = sumCol(teamJ, 'commission_leader');
+    const retrait= DATA.retraits.filter(r => (r.user_id === chef.id || r.leader_id === chef.id) && r.statut !== 'refuse').reduce((a,r)=>a+(Number(r.montant)||0),0);
+    const solde  = comm - retrait;
+    const nbActifs = teamVendeurs.filter(v => v.actif).length;
+    let perf = 'faible';
+    if (units >= 50) perf = 'fort';
+    else if (units >= 20) perf = 'moyen';
+    return { ...chef, ca, units, comm, solde, retrait, nbActifs, nbVendeurs: teamVendeurs.length, nbLeaders: teamLeaders.length, perf, teamLeaders, teamVendeurs };
+  }).sort((a,b) => b.ca - a.ca);
+}
+
+/* ── Fallback : stats par leader individuel (ancien modèle) ── */
 function getLeaderStats() {
   const journees = getFilteredJournees();
   return DATA.users.filter(u => u.role === 'leader').map(leader => {
@@ -848,7 +924,7 @@ function getLeaderStats() {
     const units = sumCol(myJ, 'total_vendu');
     const leaderUnits = sumCol(leaderJ, 'total_vendu');
     const leaderCA    = sumCol(leaderJ, 'total_fcfa');
-    const retrait = DATA.retraits.filter(r => r.user_id === leader.id && r.statut === 'valide').reduce((a,r)=>a+(Number(r.montant)||0),0);
+    const retrait = DATA.retraits.filter(r => (r.user_id === leader.id || r.leader_id === leader.id) && r.statut !== 'refuse').reduce((a,r)=>a+(Number(r.montant)||0),0);
     const solde = comm - retrait;
     const nbActifs = myV.filter(v => v.actif).length;
     let perf = 'faible';
@@ -880,15 +956,20 @@ function renderEquipe() {
   }
 
   // ── Liste des équipes ──
-  const leaders = getLeaderStats();
+  const teams = getTeamStats();
+  const useFamilyModel = teams.length > 0;
+  const leaders = useFamilyModel ? teams : getLeaderStats();
   const q = SEARCH_QUERY;
 
   let filtered = leaders;
   if (q) {
     filtered = leaders.filter(l => {
       const matchLeader = l.nom.toLowerCase().includes(q) || (l.identifiant||'').toLowerCase().includes(q);
-      const matchVendeur = l.vendeurs.some(v => v.nom.toLowerCase().includes(q) || (v.identifiant||'').toLowerCase().includes(q));
-      return matchLeader || matchVendeur;
+      const members = useFamilyModel
+        ? [...(l.teamLeaders||[]), ...(l.teamVendeurs||[])]
+        : (l.vendeurs||[]);
+      const matchMember = members.some(m => m.nom.toLowerCase().includes(q) || (m.identifiant||'').toLowerCase().includes(q));
+      return matchLeader || matchMember;
     });
   }
 
@@ -901,20 +982,23 @@ function renderEquipe() {
   const perfClass = { fort:'pb-fort', moyen:'pb-moyen', faible:'pb-faible' };
 
   panel.innerHTML = filtered.map((l, i) => {
-    const initiale = (l.nom||'?')[0].toUpperCase();
-    return `<div class="team-card" style="animation-delay:${i*0.05}s" onclick="openTeamDetail('${l.id}')">
+    const initiale  = (l.nom||'?')[0].toUpperCase();
+    const subLabel  = useFamilyModel
+      ? `${l.nbLeaders} leader(s) · ${l.nbActifs}/${l.nbVendeurs} vendeurs actifs`
+      : `@${l.identifiant} · ${l.nbActifs}/${l.nbVendeurs} vendeurs actifs`;
+    return `<div class="team-card tc-chef" style="animation-delay:${i*0.05}s" onclick="openTeamDetail('${l.id}')">
       <div class="tc-top">
-        <div class="tc-avatar">${initiale}</div>
+        <div class="tc-avatar tc-avatar-chef">${initiale}</div>
         <div style="flex:1;min-width:0">
-          <div class="tc-name">Équipe ${l.nom}</div>
-          <div class="tc-sub">@${l.identifiant} · ${l.nbActifs}/${l.nbVendeurs} vendeurs actifs</div>
+          <div class="tc-name">Équipe ${l.nom} <span class="chef-tag">👑 Chef</span></div>
+          <div class="tc-sub">${subLabel}</div>
         </div>
         <span class="perf-badge ${perfClass[l.perf]}" style="flex-shrink:0">${perfLabel[l.perf]}</span>
         <span class="tc-arrow">›</span>
       </div>
       <div class="tc-grid">
         <div class="tc-stat"><div class="tc-stat-val pos">${fmt(l.ca)}</div><div class="tc-stat-lbl">CA équipe</div></div>
-        <div class="tc-stat"><div class="tc-stat-val">${fmtN(l.units)} u.</div><div class="tc-stat-lbl">Unités équipe</div></div>
+        <div class="tc-stat"><div class="tc-stat-val">${fmtN(l.units)} u.</div><div class="tc-stat-lbl">Unités</div></div>
         <div class="tc-stat"><div class="tc-stat-val" style="color:var(--amber)">${fmt(l.comm)}</div><div class="tc-stat-lbl">Commissions</div></div>
         <div class="tc-stat"><div class="tc-stat-val ${l.solde>=0?'pos':'neg'}">${fmt(l.solde)}</div><div class="tc-stat-lbl">Solde dispo</div></div>
       </div>
@@ -924,6 +1008,8 @@ function renderEquipe() {
 
 function openTeamDetail(leaderId) {
   SELECTED_TEAM_ID = leaderId;
+  TEAM_PERF_FROM = null;
+  TEAM_PERF_TO   = null;
   renderTeamDetail(leaderId);
   document.getElementById('main').scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -933,100 +1019,469 @@ function closeTeamDetail() {
   renderEquipe();
 }
 
-function renderTeamDetail(leaderId) {
-  const panel   = document.getElementById('equipePanel');
+function renderTeamDetail(chefId) {
+  const panel    = document.getElementById('equipePanel');
   const journees = getFilteredJournees();
-  const leader  = DATA.users.find(u => u.id === leaderId);
-  if (!leader) { panel.innerHTML = emptyState('❓','Leader introuvable'); return; }
+  const chef     = DATA.users.find(u => u.id === chefId);
+  if (!chef) { panel.innerHTML = emptyState('❓','Équipe introuvable'); return; }
 
-  // Vendeurs de l'équipe
-  const teamVendeurs = DATA.users.filter(v => v.role === 'vendeur' && v.leader_id === leaderId);
-  const teamIds = teamVendeurs.map(v => v.id);
+  // Membres de l'équipe via chef_famille_id (nouveau modèle)
+  let teamLeaders    = DATA.users.filter(u => u.role === 'leader' && u.leader_valide && u.chef_famille_id === chefId && u.id !== chefId);
+  let leadersPending = DATA.users.filter(u => u.role === 'leader' && !u.leader_valide && u.chef_famille_id === chefId && u.id !== chefId);
+  let teamVendeurs   = DATA.users.filter(u => u.role === 'vendeur' && u.chef_famille_id === chefId);
 
-  // Ventes personnelles du leader
-  const leaderJ  = journees.filter(j => j.vendeur_id === leaderId);
-  const leaderUnits = sumCol(leaderJ, 'total_vendu');
-  const leaderCA    = sumCol(leaderJ, 'total_fcfa');
-  const leaderComm  = sumCol(leaderJ, 'commission_vendeur');
+  // Fallback : chef_famille_id pas encore configuré → utiliser leader_id (ancien modèle)
+  if (teamLeaders.length === 0 && teamVendeurs.length === 0) {
+    teamLeaders    = DATA.users.filter(u => u.role === 'leader' && u.leader_id === chefId && u.id !== chefId);
+    teamVendeurs   = DATA.users.filter(u => u.role === 'vendeur' && u.leader_id === chefId);
+    leadersPending = [];
+  }
 
-  // Stats de l'équipe (vendeurs uniquement)
-  const teamJ = journees.filter(j => teamIds.includes(j.vendeur_id));
-  const teamCA    = sumCol(teamJ, 'total_fcfa');
-  const teamUnits = sumCol(teamJ, 'total_vendu');
-  const teamComm  = sumCol(teamJ, 'commission_leader');
+  // Inclure aussi les vendeurs des leaders (via leader_id) pour les stats
+  const leaderVendeurIds = teamLeaders.flatMap(l =>
+    DATA.users.filter(v => v.role === 'vendeur' && (v.chef_famille_id === chefId || v.leader_id === l.id)).map(v => v.id)
+  );
+  const allTeamIds = [...new Set([chefId, ...teamLeaders.map(l=>l.id), ...teamVendeurs.map(v=>v.id), ...leaderVendeurIds])];
 
-  // Vendeurs avec stats, triés par perf
-  const vendRows = teamVendeurs.map(v => {
-    const myJ   = journees.filter(j => j.vendeur_id === v.id);
-    const units = sumCol(myJ, 'total_vendu');
-    const ca    = sumCol(myJ, 'total_fcfa');
-    const comm  = sumCol(myJ, 'commission_vendeur');
-    let perf = 'faible';
-    if (units >= 20) perf = 'fort';
-    else if (units >= 7) perf = 'moyen';
-    return { ...v, units, ca, comm, perf };
-  }).sort((a,b) => b.units - a.units);
+  // Ventes personnelles du chef
+  const chefJ    = journees.filter(j => j.vendeur_id === chefId);
+  const chefUnits = sumCol(chefJ, 'total_vendu');
+  const chefCA   = sumCol(chefJ, 'total_fcfa');
+  const chefComm = sumCol(chefJ, 'commission_vendeur');
+
+  // Stats totales de l'équipe
+  const teamJ     = journees.filter(j => allTeamIds.includes(j.vendeur_id));
+  const totalCA   = sumCol(teamJ, 'total_fcfa');
+  const totalUnits= sumCol(teamJ, 'total_vendu');
+  const totalComm = sumCol(teamJ, 'commission_leader');
 
   const perfLabel = { fort:'🟢 Fort', moyen:'🟡 Moyen', faible:'🔴 Faible' };
   const perfColor = { fort:'var(--accent)', moyen:'var(--amber)', faible:'var(--red)' };
-  const avatarColors = ['#8b5cf6','#3b82f6','#10b981','#f59e0b','#ef4444'];
-
-  const initiale = (leader.nom||'?')[0].toUpperCase();
+  const avatarColors = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6'];
+  const chefAv = (chef.nom||'?')[0].toUpperCase();
 
   let html = `
     <button class="back-btn" onclick="closeTeamDetail()">← Toutes les équipes</button>
 
     <div class="team-header">
-      <div class="team-hdr-name">👥 Équipe ${leader.nom}</div>
-      <div class="team-hdr-sub">@${leader.identifiant} · ${teamVendeurs.length} vendeur(s)</div>
+      <div class="team-hdr-name">👑 Équipe ${chef.nom}</div>
+      <div class="team-hdr-sub">${teamLeaders.length} leader(s) · ${teamVendeurs.filter(v=>v.actif).length}/${teamVendeurs.length} vendeurs actifs</div>
       <div class="team-kpi-grid">
-        <div class="team-kpi"><div class="team-kpi-val">${fmt(teamCA)}</div><div class="team-kpi-lbl">CA équipe</div></div>
-        <div class="team-kpi"><div class="team-kpi-val">${fmtN(teamUnits)} u.</div><div class="team-kpi-lbl">Unités équipe</div></div>
-        <div class="team-kpi"><div class="team-kpi-val">${fmt(teamComm)}</div><div class="team-kpi-lbl">Commissions</div></div>
-        <div class="team-kpi"><div class="team-kpi-val">${teamVendeurs.filter(v=>v.actif).length}/${teamVendeurs.length}</div><div class="team-kpi-lbl">Actifs</div></div>
+        <div class="team-kpi"><div class="team-kpi-val">${fmt(totalCA)}</div><div class="team-kpi-lbl">CA équipe</div></div>
+        <div class="team-kpi"><div class="team-kpi-val">${fmtN(totalUnits)} u.</div><div class="team-kpi-lbl">Unités</div></div>
+        <div class="team-kpi"><div class="team-kpi-val">${fmt(totalComm)}</div><div class="team-kpi-lbl">Commissions</div></div>
+        <div class="team-kpi"><div class="team-kpi-val">${teamVendeurs.length + teamLeaders.length}</div><div class="team-kpi-lbl">Membres</div></div>
       </div>
     </div>
 
-    <div class="slabel">👑 Leader</div>
-    <div class="member-row" style="border-left:3px solid var(--purple);cursor:pointer" onclick="openLeaderDetail('${leaderId}')">
-      <div class="member-avatar" style="background:linear-gradient(135deg,var(--purple),#7c3aed)">${initiale}</div>
+    <div class="slabel">👑 Chef de Famille</div>
+    <div class="member-row" style="border-left:3px solid var(--amber);cursor:pointer" onclick="openLeaderDetail('${chefId}')">
+      <div class="member-avatar" style="background:linear-gradient(135deg,var(--amber),#d4870a)">${chefAv}</div>
       <div style="flex:1;min-width:0">
-        <div class="member-name">${leader.nom} <span class="leader-tag">Leader</span></div>
-        <div class="member-sub">@${leader.identifiant}</div>
+        <div class="member-name">${chef.nom} <span class="chef-tag">👑 Chef</span></div>
+        <div class="member-sub">@${chef.identifiant}</div>
       </div>
       <div class="member-stats">
-        <div class="member-units">${fmtN(leaderUnits)} u.</div>
-        <div class="member-ca">${fmt(leaderCA)}</div>
-        ${leaderComm > 0 ? `<div style="font-size:9px;color:var(--accent)">${fmt(leaderComm)} comm.</div>` : ''}
+        <div class="member-units">${fmtN(chefUnits)} u.</div>
+        <div class="member-ca">${fmt(chefCA)}</div>
+        ${chefComm > 0 ? `<div style="font-size:9px;color:var(--accent)">${fmt(chefComm)} comm.</div>` : ''}
       </div>
       <span style="color:var(--muted);font-size:16px;flex-shrink:0;margin-left:6px">›</span>
-    </div>
+    </div>`;
 
-    <div class="slabel">🛒 Vendeurs (${vendRows.length}) — triés par performance</div>`;
-
-  if (!vendRows.length) {
-    html += emptyState('🛒','Aucun vendeur dans cette équipe');
-  } else {
-    html += vendRows.map((v, i) => {
-      const color = avatarColors[i % avatarColors.length];
-      const av = (v.nom||'?')[0].toUpperCase();
-      return `<div class="member-row" style="animation-delay:${i*0.04}s;cursor:pointer" onclick="openVendeurDetail('${v.id}','${leaderId}')">
-        <div class="member-avatar" style="background:${color}">${av}</div>
-        <div style="flex:1;min-width:0">
-          <div class="member-name">${v.nom}</div>
-          <div class="member-sub">@${v.identifiant} · <span style="color:${perfColor[v.perf]};font-weight:700">${perfLabel[v.perf]}</span></div>
+  // ── Leaders de l'équipe ──
+  if (teamLeaders.length) {
+    html += `<div class="slabel">👥 Leaders (${teamLeaders.length})</div>`;
+    html += teamLeaders.map((l, i) => {
+      const lJ    = journees.filter(j => j.vendeur_id === l.id);
+      const lU    = sumCol(lJ, 'total_vendu');
+      const lCA   = sumCol(lJ, 'total_fcfa');
+      const lComm = sumCol(lJ, 'commission_vendeur');
+      const av    = (l.nom||'?')[0].toUpperCase();
+      const parrainL = l.parrain_id ? getUserById(l.parrain_id) : null;
+      const valideBadge = l.leader_valide
+        ? `<span class="leader-tag" style="background:rgba(13,216,133,.12);color:var(--accent)">✅ Validé</span>`
+        : `<span class="leader-tag">Leader</span>`;
+      return `<div class="member-row" style="animation-delay:${i*0.04}s;border-left:3px solid var(--purple)">
+        <div class="member-avatar" style="background:linear-gradient(135deg,var(--purple),#7c3aed);cursor:pointer" onclick="openLeaderDetail('${l.id}')">${av}</div>
+        <div style="flex:1;min-width:0;cursor:pointer" onclick="openLeaderDetail('${l.id}')">
+          <div class="member-name">${l.nom} ${valideBadge}</div>
+          <div class="member-sub">@${l.identifiant}${parrainL ? ' · Parrain : ' + parrainL.nom : ''}</div>
         </div>
-        <div class="member-stats">
-          <div class="member-units">${fmtN(v.units)} u.</div>
-          <div class="member-ca">${fmt(v.ca)}</div>
-          <div style="font-size:9px;color:var(--accent)">${fmt(v.comm)} comm.</div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">
+          <button onclick="event.stopPropagation();promouvoirChef('${l.id}')"
+            style="border:none;border-radius:8px;padding:4px 8px;font-size:10px;font-weight:800;cursor:pointer;
+              background:linear-gradient(135deg,#f59e0b,#d4870a);color:#fff;white-space:nowrap">
+            👑 Promouvoir
+          </button>
+          <div style="font-size:10px;color:var(--muted);text-align:right">${fmtN(lU)} u. · ${fmt(lCA)}</div>
         </div>
-        <span style="color:var(--muted);font-size:16px;flex-shrink:0;margin-left:6px">›</span>
       </div>`;
     }).join('');
   }
 
+  // ── Vendeurs de l'équipe ──
+  const vendRows = teamVendeurs.map(v => {
+    const myJ  = journees.filter(j => j.vendeur_id === v.id);
+    const units = sumCol(myJ, 'total_vendu');
+    const ca    = sumCol(myJ, 'total_fcfa');
+    const comm  = sumCol(myJ, 'commission_vendeur');
+    let perf = units >= 20 ? 'fort' : units >= 7 ? 'moyen' : 'faible';
+    return { ...v, units, ca, comm, perf };
+  }).sort((a,b) => b.units - a.units);
+
+  html += `<div class="slabel">🧑 Vendeurs (${vendRows.length}) — triés par performance</div>`;
+
+  if (!vendRows.length) {
+    html += emptyState('🧑','Aucun vendeur dans cette équipe');
+  } else {
+    html += vendRows.map((v, i) => {
+      const color    = avatarColors[i % avatarColors.length];
+      const av       = (v.nom||'?')[0].toUpperCase();
+      const parrain  = v.parrain_id ? getUserById(v.parrain_id) : (v.leader_id ? getUserById(v.leader_id) : null);
+      const filleuls = DATA.users.filter(u => u.parrain_id === v.id).length;
+      const promoTag = v.demande_leader
+        ? `<span class="chef-tag" style="font-size:8px;padding:1px 5px">⏳ Promo</span>` : '';
+      return `<div class="member-row" style="animation-delay:${i*0.04}s">
+        <div class="member-avatar" style="background:${color};cursor:pointer" onclick="openVendeurDetail('${v.id}','${chefId}')">${av}</div>
+        <div style="flex:1;min-width:0;cursor:pointer" onclick="openVendeurDetail('${v.id}','${chefId}')">
+          <div class="member-name">${v.nom}${promoTag}</div>
+          <div class="member-sub">@${v.identifiant}${parrain ? ' · ' + parrain.nom : ''} · <span style="color:${perfColor[v.perf]};font-weight:700">${perfLabel[v.perf]}</span></div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">
+          <button onclick="event.stopPropagation();promouvoirChef('${v.id}')"
+            style="border:none;border-radius:8px;padding:4px 8px;font-size:10px;font-weight:800;cursor:pointer;
+              background:linear-gradient(135deg,#f59e0b,#d4870a);color:#fff;white-space:nowrap">
+            👑 Promouvoir
+          </button>
+          <div style="font-size:10px;color:var(--muted);text-align:right">${fmtN(v.units)} u.</div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  // ── Leaders en attente de validation ──
+  if (leadersPending.length) {
+    html += `<div class="slabel" style="color:var(--amber)">⏳ Leaders en attente de validation (${leadersPending.length})</div>`;
+    html += leadersPending.map((l, i) => {
+      const av = (l.nom||'?')[0].toUpperCase();
+      const filleuls = DATA.users.filter(u => u.parrain_id === l.id).length;
+      return `<div class="member-row" style="animation-delay:${i*0.04}s;border-left:3px solid var(--amber);opacity:.8">
+        <div class="member-avatar" style="background:linear-gradient(135deg,var(--amber),#d4870a)">${av}</div>
+        <div style="flex:1;min-width:0">
+          <div class="member-name">${l.nom} <span class="chef-tag" style="font-size:8px">⏳ En attente</span></div>
+          <div class="member-sub">@${l.identifiant} · ${filleuls} filleul(s)</div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  // ── Promotions récentes (logs) ──
+  const promoLogs = DATA.logs
+    .filter(lg => ['validate_leader','refuse_leader'].includes(lg.action) && teamLeaders.concat(teamVendeurs).map(m=>m.id).includes(lg.target_user_id))
+    .slice(0, 5);
+
+  if (promoLogs.length) {
+    html += `<div class="slabel">📋 Dernières validations</div>`;
+    html += promoLogs.map(lg => {
+      const target = getUserById(lg.target_user_id);
+      const actor  = getUserById(lg.actor_id);
+      const isVal  = lg.action === 'validate_leader';
+      return `<div style="background:var(--card);border-radius:10px;padding:10px 12px;margin-bottom:6px;border:1px solid var(--border);font-size:11px;display:flex;align-items:center;gap:8px">
+        <span>${isVal ? '✅' : '❌'}</span>
+        <span style="flex:1"><strong>${target?.nom||'—'}</strong> ${isVal ? 'promu Leader' : 'refusé'} par <strong>${actor?.nom||'—'}</strong></span>
+        <span style="color:var(--muted);font-size:9px">${fmtDateShort(lg.created_at)}</span>
+      </div>`;
+    }).join('');
+  }
+
+  // ── Tableau de performances ──
+  const now = new Date();
+  const toDateStr = d => d.toISOString().split('T')[0];
+  const defaultFrom = TEAM_PERF_FROM || toDateStr(new Date(now.getFullYear(), now.getMonth(), 1));
+  const defaultTo   = TEAM_PERF_TO   || toDateStr(now);
+
+  html += `
+  <div class="slabel" style="margin-top:16px">📊 Tableau de performances</div>
+  <div style="background:var(--card);border-radius:var(--r);border:1px solid var(--border);padding:14px 16px;margin-bottom:10px">
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
+      <button class="pg-btn" onclick="setTeamPeriod('today')" style="font-size:10px">Auj.</button>
+      <button class="pg-btn" onclick="setTeamPeriod('hier')"  style="font-size:10px">Hier</button>
+      <button class="pg-btn" onclick="setTeamPeriod('7')"    style="font-size:10px">7 jours</button>
+      <button class="pg-btn" onclick="setTeamPeriod('mois')" style="font-size:10px">Ce mois</button>
+      <button class="pg-btn" onclick="setTeamPeriod('all')"  style="font-size:10px">Tout</button>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <label style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Du</label>
+      <input type="date" id="tdFrom" value="${defaultFrom}" onchange="onTeamDateChange()"
+        style="border:1.5px solid var(--border);border-radius:8px;padding:5px 8px;font-family:'Syne',sans-serif;font-size:12px;font-weight:600;background:var(--bg);color:var(--ink);outline:none">
+      <label style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Au</label>
+      <input type="date" id="tdTo" value="${defaultTo}" onchange="onTeamDateChange()"
+        style="border:1.5px solid var(--border);border-radius:8px;padding:5px 8px;font-family:'Syne',sans-serif;font-size:12px;font-weight:600;background:var(--bg);color:var(--ink);outline:none">
+    </div>
+  </div>
+  <div id="teamPerfTable"></div>
+
+  <div class="slabel" style="margin-top:16px">📦 Tableaux de réapprovisionnement</div>
+  <div id="teamReapproPanel"><div style="text-align:center;padding:16px;color:var(--muted);font-size:12px">Chargement…</div></div>`;
+
   panel.innerHTML = html;
+
+  if (!TEAM_PERF_FROM) { TEAM_PERF_FROM = defaultFrom; TEAM_PERF_TO = defaultTo; }
+  renderTeamPerfTable(chefId, allTeamIds);
+  loadManagerReappro(chefId);
+}
+
+/* ── Helpers tableau performances équipe ── */
+function getTeamAllIds(chefId) {
+  let leaders  = DATA.users.filter(u => u.role === 'leader' && u.chef_famille_id === chefId && u.id !== chefId);
+  let vendeurs = DATA.users.filter(u => u.role === 'vendeur' && u.chef_famille_id === chefId);
+  if (leaders.length === 0 && vendeurs.length === 0) {
+    leaders  = DATA.users.filter(u => u.role === 'leader' && u.leader_id === chefId && u.id !== chefId);
+    vendeurs = DATA.users.filter(u => u.role === 'vendeur' && u.leader_id === chefId);
+  }
+  const leaderVIds = leaders.flatMap(l =>
+    DATA.users.filter(v => v.role === 'vendeur' && (v.chef_famille_id === chefId || v.leader_id === l.id)).map(v => v.id)
+  );
+  return [...new Set([chefId, ...leaders.map(l=>l.id), ...vendeurs.map(v=>v.id), ...leaderVIds])];
+}
+
+function setTeamPeriod(name) {
+  const now = new Date();
+  const s = d => d.toISOString().split('T')[0];
+  if      (name === 'today') { TEAM_PERF_FROM = TEAM_PERF_TO = s(now); }
+  else if (name === 'hier')  { TEAM_PERF_FROM = TEAM_PERF_TO = s(new Date(now - 86400000)); }
+  else if (name === '7')     { TEAM_PERF_TO = s(now); TEAM_PERF_FROM = s(new Date(now - 6*86400000)); }
+  else if (name === 'mois')  { TEAM_PERF_FROM = s(new Date(now.getFullYear(), now.getMonth(), 1)); TEAM_PERF_TO = s(now); }
+  else                       { TEAM_PERF_FROM = null; TEAM_PERF_TO = null; }
+  const fe = document.getElementById('tdFrom'); if (fe) fe.value = TEAM_PERF_FROM || '';
+  const te = document.getElementById('tdTo');   if (te) te.value = TEAM_PERF_TO   || '';
+  renderTeamPerfTable(SELECTED_TEAM_ID, getTeamAllIds(SELECTED_TEAM_ID));
+}
+
+function onTeamDateChange() {
+  TEAM_PERF_FROM = document.getElementById('tdFrom')?.value || null;
+  TEAM_PERF_TO   = document.getElementById('tdTo')?.value   || null;
+  renderTeamPerfTable(SELECTED_TEAM_ID, getTeamAllIds(SELECTED_TEAM_ID));
+}
+
+async function renderTeamPerfTable(chefId, allIds) {
+  const container = document.getElementById('teamPerfTable');
+  if (!container || !chefId) return;
+
+  container.innerHTML = `<div style="text-align:center;padding:16px;color:var(--muted);font-size:12px;font-weight:600">Chargement…</div>`;
+
+  try {
+    // Charger les réappros du chef sur la période choisie
+    let rq = getSb()
+      .from('reapprovisionnements')
+      .select('id, created_at, statut')
+      .eq('chef_famille_id', chefId);
+    if (TEAM_PERF_FROM) rq = rq.gte('created_at', TEAM_PERF_FROM);
+    if (TEAM_PERF_TO)   rq = rq.lte('created_at', TEAM_PERF_TO + 'T23:59:59');
+    const { data: reappros, error: rErr } = await rq;
+    if (rErr) throw rErr;
+
+    if (!reappros || !reappros.length) {
+      container.innerHTML = `<div style="text-align:center;padding:24px;color:var(--muted);font-size:12px;font-weight:600">Aucune données sur cette période</div>`;
+      return;
+    }
+
+    // Charger les lignes pour ces réappros
+    const ids = reappros.map(r => r.id);
+    const { data: lignes, error: lErr } = await getSb()
+      .from('reappro_lignes').select('*').in('reappro_id', ids);
+    if (lErr) throw lErr;
+
+    if (!lignes || !lignes.length) {
+      container.innerHTML = `<div style="text-align:center;padding:24px;color:var(--muted);font-size:12px;font-weight:600">Aucune ligne sur cette période</div>`;
+      return;
+    }
+
+    const totQte  = lignes.reduce((s,l) => s + Number(l.qte_totale||0), 0);
+    const totVte  = lignes.reduce((s,l) => s + Number(l.vente||0), 0);
+    const totVers = lignes.reduce((s,l) => s + Number(l.versement||0), 0);
+    const totRest = lignes.reduce((s,l) => s + Number(l.reste||0), 0);
+    const totCmd  = lignes.reduce((s,l) => s + Number(l.commande||0), 0);
+    const totReap = totRest + totCmd;
+
+    const fmtN = v => Number(v||0).toLocaleString('fr-FR');
+    const thS = 'padding:7px 8px;font-size:8px;font-weight:700;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border);white-space:nowrap;text-align:right';
+    const tdS = 'padding:7px 8px;font-size:11px;border-bottom:1px solid rgba(15,23,42,.05);text-align:right;font-family:monospace';
+
+    const rows = lignes.map(l => {
+      const v = getUserById(l.vendeur_id);
+      const signed = !!l.signature_hash;
+      const reappro = Number(l.reste||0) + Number(l.commande||0);
+      return `<tr>
+        <td style="${tdS};text-align:left;font-weight:600">${v?.nom||'—'}${v?.role==='leader'?'<br><span style="font-size:8px;color:var(--purple);font-weight:700">Leader</span>':''}</td>
+        <td style="${tdS}">${fmtN(l.qte_totale)}</td>
+        <td style="${tdS};color:var(--accent)">${fmtN(l.vente)}</td>
+        <td style="${tdS};color:var(--blue)">${fmtN(l.versement)}</td>
+        <td style="${tdS}">${fmtN(l.reste)}</td>
+        <td style="${tdS}">${fmtN(l.commande)}</td>
+        <td style="${tdS};font-weight:700;color:var(--amber)">${fmtN(reappro)}</td>
+        <td style="${tdS};text-align:center;font-weight:700;color:${signed?'var(--accent)':'var(--amber)'}">${signed?'✅':'⏳'}</td>
+      </tr>`;
+    }).join('');
+
+    container.innerHTML = `<div class="tbl-wrap"><table>
+      <thead><tr>
+        <th style="${thS};text-align:left">Nom</th>
+        <th style="${thS}">Qté totale</th>
+        <th style="${thS}">Vente</th>
+        <th style="${thS}">Versement</th>
+        <th style="${thS}">Reste</th>
+        <th style="${thS}">Commande</th>
+        <th style="${thS}">Réappro</th>
+        <th style="${thS};text-align:center">Signature</th>
+      </tr></thead>
+      <tbody>
+        ${rows}
+        <tr style="border-top:2px solid var(--border);background:var(--bg)">
+          <td style="${tdS};text-align:left;font-size:9px;font-weight:800;text-transform:uppercase;color:var(--muted)">TOTAL · ${lignes.length} ligne${lignes.length>1?'s':''}</td>
+          <td style="${tdS};font-weight:700">${fmtN(totQte)}</td>
+          <td style="${tdS};font-weight:700;color:var(--accent)">${fmtN(totVte)}</td>
+          <td style="${tdS};font-weight:700;color:var(--blue)">${fmtN(totVers)}</td>
+          <td style="${tdS};font-weight:700">${fmtN(totRest)}</td>
+          <td style="${tdS};font-weight:700">${fmtN(totCmd)}</td>
+          <td style="${tdS};font-weight:700;color:var(--amber)">${fmtN(totReap)}</td>
+          <td></td>
+        </tr>
+      </tbody>
+    </table></div>`;
+
+  } catch(e) {
+    container.innerHTML = `<div style="color:var(--red);font-size:12px;padding:12px">Erreur : ${e.message}</div>`;
+  }
+}
+
+/* ══════════════════════════════════════════
+   RÉAPPROVISIONNEMENT — vue manager
+══════════════════════════════════════════ */
+async function loadManagerReappro(chefId) {
+  const container = document.getElementById('teamReapproPanel');
+  if (!container) return;
+  try {
+    const sb = getSb();
+    const { data: reappros, error } = await sb
+      .from('reapprovisionnements')
+      .select('*, reappro_lignes(*)')
+      .eq('chef_famille_id', chefId)
+      .order('created_at', { ascending: false })
+      .limit(10);
+
+    if (error) throw error;
+    if (!reappros || !reappros.length) {
+      container.innerHTML = `<div style="text-align:center;padding:16px;color:var(--muted);font-size:12px;font-weight:600">Aucun tableau soumis</div>`;
+      return;
+    }
+    renderManagerReapproList(container, reappros);
+  } catch(e) {
+    container.innerHTML = `<div style="color:var(--red);font-size:12px;padding:12px">Erreur : ${e.message}</div>`;
+  }
+}
+
+function renderManagerReapproList(container, reappros) {
+  const statusLabel = { draft:'✏️ Brouillon', soumis:'🔵 Soumis', valide_manager:'✅ Validé' };
+  const statusColor = { draft:'var(--muted)', soumis:'var(--blue)', valide_manager:'var(--accent)' };
+
+  container.innerHTML = reappros.map((r, idx) => {
+    const lignes  = r.reappro_lignes || [];
+    const signees = lignes.filter(l => l.signature_hash).length;
+    const date    = new Date(r.created_at).toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'});
+
+    // Totaux colonnes
+    const totQte   = lignes.reduce((s,l) => s + Number(l.qte_totale||0), 0);
+    const totVente = lignes.reduce((s,l) => s + Number(l.vente||0), 0);
+    const totVers  = lignes.reduce((s,l) => s + Number(l.versement||0), 0);
+    const totReste = lignes.reduce((s,l) => s + Number(l.reste||0), 0);
+    const totCmd   = lignes.reduce((s,l) => s + Number(l.commande||0), 0);
+    const totReappro = totReste + totCmd;
+
+    const th = (txt, align) => `<th style="padding:6px 8px;text-align:${align||'right'};border-bottom:1px solid var(--border);white-space:nowrap">${txt}</th>`;
+    const td = (txt, opts) => `<td style="padding:6px 8px;font-size:11px;${opts||''}">${txt}</td>`;
+    const fmtN = v => Number(v||0).toLocaleString('fr-FR');
+
+    // Détail des lignes
+    const lignesHtml = lignes.length ? `
+      <div style="margin-top:10px;overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:11px">
+          <thead><tr style="font-size:9px;font-weight:700;text-transform:uppercase;color:var(--muted)">
+            ${th('Nom','left')}
+            ${th('Qté tot.')}
+            ${th('Vente')}
+            ${th('Versement')}
+            ${th('Reste')}
+            ${th('Commande')}
+            ${th('Réappro')}
+            ${th('Signature','center')}
+          </tr></thead>
+          <tbody>
+            ${lignes.map(l => {
+              const v = getUserById(l.vendeur_id);
+              const signed = !!l.signature_hash;
+              const reappro = Number(l.reste||0) + Number(l.commande||0);
+              return `<tr style="border-bottom:1px solid var(--border)">
+                ${td(v?.nom||'—','font-weight:600')}
+                ${td(fmtN(l.qte_totale),'text-align:right')}
+                ${td(fmtN(l.vente),'text-align:right')}
+                ${td(fmtN(l.versement),'text-align:right')}
+                ${td(fmtN(l.reste),'text-align:right')}
+                ${td(fmtN(l.commande),'text-align:right')}
+                ${td(fmtN(reappro),'text-align:right;font-weight:700;color:var(--amber)')}
+                ${td(signed ? '✅ '+new Date(l.signed_at).toLocaleDateString('fr-FR') : '⏳ En attente','text-align:center;font-weight:700;color:'+(signed?'var(--accent)':'var(--amber)'))}
+              </tr>`;
+            }).join('')}
+            <tr style="border-top:2px solid var(--border);background:var(--bg);font-weight:800">
+              ${td('TOTAL','font-weight:800')}
+              ${td(fmtN(totQte),'text-align:right;font-family:monospace')}
+              ${td(fmtN(totVente),'text-align:right;font-family:monospace')}
+              ${td(fmtN(totVers),'text-align:right;font-family:monospace')}
+              ${td(fmtN(totReste),'text-align:right;font-family:monospace')}
+              ${td(fmtN(totCmd),'text-align:right;font-family:monospace')}
+              ${td(fmtN(totReappro),'text-align:right;font-family:monospace;color:var(--amber)')}
+              ${td(signees+'/'+lignes.length+' signées','text-align:center;font-size:10px;color:var(--muted)')}
+            </tr>
+          </tbody>
+        </table>
+      </div>` : `<div style="font-size:11px;color:var(--muted);padding:8px 0">Aucune ligne</div>`;
+
+    const canValidate = r.statut === 'soumis';
+    return `<div style="background:var(--card);border-radius:var(--r);border:1px solid var(--border);padding:14px 16px;margin-bottom:10px;border-left:3px solid ${statusColor[r.statut]||'var(--border)'}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px">
+        <div style="font-size:13px;font-weight:800">Tableau du ${date}</div>
+        <span style="font-size:10px;font-weight:700;color:${statusColor[r.statut]||'var(--muted)'}">${statusLabel[r.statut]||r.statut}</span>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:8px">${lignes.length} ligne(s) · ${signees} signée(s)</div>
+      ${lignesHtml}
+      ${canValidate ? `<button onclick="validerReappro('${r.id}')"
+        style="width:100%;margin-top:12px;padding:11px;border:none;border-radius:10px;background:linear-gradient(135deg,var(--accent),#059669);color:#fff;font-family:'Syne',sans-serif;font-size:13px;font-weight:700;cursor:pointer">
+        ✅ Valider ce tableau
+      </button>` : ''}
+    </div>`;
+  }).join('');
+}
+
+async function validerReappro(reapproId) {
+  if (!confirm('Valider ce tableau de réapprovisionnement ?')) return;
+  const { error } = await getSb()
+    .from('reapprovisionnements')
+    .update({ statut: 'valide_manager', date_signature_finale: new Date().toISOString() })
+    .eq('id', reapproId)
+    .eq('statut', 'soumis');
+  if (error) { alert('Erreur : ' + error.message); return; }
+
+  // Recharger l'affichage
+  loadManagerReappro(SELECTED_TEAM_ID);
+  try {
+    await getSb().from('admin_logs').insert({
+      action: 'valider_reappro', actor_id: SESSION.id,
+      target_user_id: SELECTED_TEAM_ID,
+      new_value: { reappro_id: reapproId },
+      created_at: new Date().toISOString()
+    });
+  } catch(e) {}
 }
 
 function openLeaderDetail(leaderId) {
@@ -1050,8 +1505,11 @@ function renderLeaderDetail(leaderId) {
   const leader   = DATA.users.find(u => u.id === leaderId);
   if (!leader) { panel.innerHTML = emptyState('❓','Leader introuvable'); return; }
 
-  // Vendeurs de l'équipe
-  const teamVendeurs = DATA.users.filter(v => v.role === 'vendeur' && v.leader_id === leaderId);
+  // Filleuls directs du leader (parrain_id = leaderId, fallback leader_id)
+  const teamVendeurs = DATA.users.filter(v =>
+    (v.parrain_id === leaderId || (!v.parrain_id && v.leader_id === leaderId)) &&
+    ['vendeur','leader'].includes(v.role) && v.id !== leaderId
+  );
   const teamIds      = teamVendeurs.map(v => v.id);
   const teamJ        = journees.filter(j => teamIds.includes(j.vendeur_id));
 
@@ -1067,7 +1525,7 @@ function renderLeaderDetail(leaderId) {
   const teamUnits = sumCol(teamJ, 'total_vendu');
   const commRecu  = sumCol(teamJ, 'commission_leader');
   const retraits  = DATA.retraits
-    .filter(r => r.user_id === leaderId && r.statut === 'valide')
+    .filter(r => (r.user_id === leaderId || r.leader_id === leaderId) && r.statut !== 'refuse')
     .reduce((a,r) => a + (Number(r.montant)||0), 0);
   const solde = commRecu - retraits;
 
@@ -1090,15 +1548,21 @@ function renderLeaderDetail(leaderId) {
   const backLabel  = SELECTED_TEAM_ID ? `← Équipe ${leader.nom}` : '← Toutes les équipes';
   const backAction = 'closeLeaderDetail()';
 
+  const isChef      = !!leader.is_chef_famille;
+  const hdrGradient = isChef ? 'linear-gradient(135deg,var(--amber),#d4870a)' : 'linear-gradient(135deg,var(--purple),#7c3aed)';
+  const roleBadge   = isChef
+    ? `<div style="display:inline-flex;align-items:center;gap:4px;background:rgba(255,255,255,.18);border-radius:20px;padding:3px 10px;font-size:10px;font-weight:700">👑 Chef de Famille</div>`
+    : `<div style="display:inline-flex;align-items:center;gap:4px;background:rgba(255,255,255,.18);border-radius:20px;padding:3px 10px;font-size:10px;font-weight:700">🟣 Leader</div>`;
+
   let html = `
     <button class="back-btn" onclick="${backAction}">${backLabel}</button>
 
-    <div class="vd-header" style="background:linear-gradient(135deg,var(--purple),#7c3aed)">
+    <div class="vd-header" style="background:${hdrGradient}">
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
         <div class="vd-avatar" style="margin:0;flex-shrink:0">${av}</div>
         <div>
           <div class="vd-name" style="margin-bottom:2px">${leader.nom}</div>
-          <div style="display:inline-flex;align-items:center;gap:4px;background:rgba(255,255,255,.18);border-radius:20px;padding:3px 10px;font-size:10px;font-weight:700">🟣 Leader</div>
+          ${roleBadge}
         </div>
       </div>
       <div class="vd-sub" style="margin-bottom:10px">@${leader.identifiant} · ${teamVendeurs.filter(v=>v.actif).length}/${teamVendeurs.length} vendeurs actifs</div>
@@ -1121,6 +1585,18 @@ function renderLeaderDetail(leaderId) {
         </div>
       </div>
     </div>`;
+
+  // ── Bouton promotion ──
+  if (!isChef) {
+    html += `
+    <button onclick="promouvoirChef('${leaderId}')"
+      style="width:100%;padding:13px;margin-bottom:16px;border-radius:12px;border:none;cursor:pointer;
+        background:linear-gradient(135deg,#f59e0b,#d4870a);color:#fff;
+        font-family:'Syne',sans-serif;font-size:13px;font-weight:800;letter-spacing:.03em;
+        box-shadow:0 4px 14px rgba(245,158,11,.3)">
+      👑 Promouvoir en Chef de famille
+    </button>`;
+  }
 
   // ── Ventes personnelles ──
   if (myJ.length > 0) {
@@ -1161,13 +1637,17 @@ function renderLeaderDetail(leaderId) {
     html += emptyState('🛒','Aucun vendeur dans cette équipe');
   } else {
     html += vendRows.map((v, i) => {
-      const color = avatarColors[i % avatarColors.length];
-      const vav   = (v.nom||'?')[0].toUpperCase();
-      return `<div class="member-row" style="animation-delay:${i*0.04}s;cursor:pointer" onclick="openVendeurDetail('${v.id}','${leaderId}')">
-        <div class="member-avatar" style="background:${color}">${vav}</div>
+      const color    = avatarColors[i % avatarColors.length];
+      const vav      = (v.nom||'?')[0].toUpperCase();
+      const subFilleuls = DATA.users.filter(u => u.parrain_id === v.id).length;
+      const isLdr    = v.role === 'leader';
+      const badge    = isLdr ? `<span class="leader-tag">Leader</span>` : '';
+      const promoTag = v.demande_leader ? `<span class="chef-tag" style="font-size:8px;padding:1px 5px">⏳ Promo</span>` : '';
+      return `<div class="member-row" style="animation-delay:${i*0.04}s;cursor:pointer${isLdr?';border-left:3px solid var(--purple)':''}" onclick="openVendeurDetail('${v.id}','${leaderId}')">
+        <div class="member-avatar" style="background:${isLdr?'linear-gradient(135deg,var(--purple),#7c3aed)':color}">${vav}</div>
         <div style="flex:1;min-width:0">
-          <div class="member-name">${v.nom}</div>
-          <div class="member-sub">@${v.identifiant} · <span style="color:${perfColor[v.perf]};font-weight:700">${perfLabel[v.perf]}</span></div>
+          <div class="member-name">${v.nom} ${badge}${promoTag}</div>
+          <div class="member-sub">@${v.identifiant}${subFilleuls ? ' · ' + subFilleuls + ' filleul(s)' : ''} · <span style="color:${perfColor[v.perf]};font-weight:700">${perfLabel[v.perf]}</span></div>
         </div>
         <div class="member-stats">
           <div class="member-units">${fmtN(v.units)} u.</div>
@@ -1201,7 +1681,9 @@ function renderVendeurDetail(vendeurId, fromLeaderId) {
   const v = DATA.users.find(u => u.id === vendeurId);
   if (!v) { panel.innerHTML = emptyState('❓','Vendeur introuvable'); return; }
 
-  const leader = v.leader_id ? getUserById(v.leader_id) : null;
+  const parrain = v.parrain_id ? getUserById(v.parrain_id) : (v.leader_id ? getUserById(v.leader_id) : null);
+  const chef    = v.chef_famille_id ? getUserById(v.chef_famille_id) : null;
+  const filleuls= DATA.users.filter(u => u.parrain_id === v.id);
   const myJ    = journees.filter(j => j.vendeur_id === vendeurId)
                          .sort((a,b) => b.date_journee.localeCompare(a.date_journee));
 
@@ -1211,11 +1693,11 @@ function renderVendeurDetail(vendeurId, fromLeaderId) {
 
   const av = (v.nom||'?')[0].toUpperCase();
 
-  // Bouton retour : leader detail si on vient d'un leader, sinon équipe
+  // Bouton retour
   const backLabel = SELECTED_LEADER_ID
-    ? `← ${leader?.nom || 'Leader'}`
+    ? `← ${parrain?.nom || 'Leader'}`
     : fromLeaderId
-      ? `← Équipe ${leader?.nom || ''}`
+      ? `← Équipe ${chef?.nom || parrain?.nom || ''}`
       : '← Toutes les équipes';
 
   let html = `
@@ -1225,13 +1707,23 @@ function renderVendeurDetail(vendeurId, fromLeaderId) {
       <div class="vd-avatar">${av}</div>
       <div class="vd-name">${v.nom}</div>
       <div class="vd-sub">@${v.identifiant}</div>
-      ${leader ? `<div class="vd-sub">👑 Équipe ${leader.nom}</div>` : ''}
+      ${parrain ? `<div class="vd-sub">👤 Parrain : ${parrain.nom} (${parrain.role})</div>` : ''}
+      ${chef ? `<div class="vd-sub">👑 Équipe : ${chef.nom}</div>` : ''}
       <div class="vd-kpi-grid">
         <div class="vd-kpi"><div class="vd-kpi-val">${fmtN(totalUnits)}</div><div class="vd-kpi-lbl">Unités</div></div>
         <div class="vd-kpi"><div class="vd-kpi-val">${fmt(totalCA).replace(' F','')}</div><div class="vd-kpi-lbl">CA</div></div>
         <div class="vd-kpi"><div class="vd-kpi-val">${fmt(totalComm).replace(' F','')}</div><div class="vd-kpi-lbl">Comm.</div></div>
       </div>
     </div>
+
+    ${!['chef_famille','manager','admin'].includes(v.role) ? `
+    <button onclick="promouvoirChef('${v.id}')"
+      style="width:100%;padding:13px;margin-bottom:14px;border-radius:12px;border:none;cursor:pointer;
+        background:linear-gradient(135deg,#f59e0b,#d4870a);color:#fff;
+        font-family:'Syne',sans-serif;font-size:13px;font-weight:800;letter-spacing:.03em;
+        box-shadow:0 4px 14px rgba(245,158,11,.3)">
+      👑 Promouvoir en Chef de famille
+    </button>` : ''}
 
     <div class="slabel">📅 Historique des journées (${myJ.length})</div>`;
 
@@ -1252,6 +1744,115 @@ function renderVendeurDetail(vendeurId, fromLeaderId) {
   }
 
   panel.innerHTML = html;
+}
+
+/* ══════════════════════════════════════════
+   PROMOTION CHEF DE FAMILLE
+══════════════════════════════════════════ */
+let _PROMO_USER_ID = null;
+
+function promouvoirChef(userId) {
+  const user = DATA.users.find(u => u.id === userId);
+  if (!user) return;
+
+  // Un vendeur doit d'abord être promu Leader par son chef de famille
+  if (user.role === 'vendeur') {
+    showModal(
+      '⚠️ Promotion impossible',
+      `<strong>${user.nom}</strong> est vendeur.<br><br>
+       Il doit d'abord être promu <strong>Leader</strong> par son Chef de famille avant de pouvoir devenir Chef de famille.`,
+      'mbtn-cancel',
+      'Compris',
+      () => closeModal()
+    );
+    return;
+  }
+
+  const baseName = user.nom.replace(/^Chef\s+/i, '').trim();
+  const newName  = 'Chef ' + baseName;
+  _PROMO_USER_ID = userId;
+
+  document.getElementById('promoModalTitle').textContent = 'Promouvoir en Chef de famille';
+  document.getElementById('promoModalMsg').innerHTML =
+    `<span style="color:var(--muted);font-size:13px">
+      <strong style="color:var(--ink);font-size:15px">${user.nom}</strong> · ${user.role}<br>
+      Sera renommé <strong style="color:var(--amber)">${newName}</strong> et retiré de son équipe actuelle.
+    </span>`;
+  document.getElementById('promoPwd').value = '';
+  document.getElementById('promoErr').style.display = 'none';
+  document.getElementById('promoBtn').disabled = false;
+  document.getElementById('promoModalBg').classList.add('open');
+  setTimeout(() => document.getElementById('promoPwd').focus(), 300);
+}
+
+function closePromoModal() {
+  document.getElementById('promoModalBg').classList.remove('open');
+  _PROMO_USER_ID = null;
+}
+
+async function confirmPromotion() {
+  if (!_PROMO_USER_ID) return;
+  const user = DATA.users.find(u => u.id === _PROMO_USER_ID);
+  if (!user) return;
+
+  const pwd   = document.getElementById('promoPwd').value;
+  const errEl = document.getElementById('promoErr');
+  const btn   = document.getElementById('promoBtn');
+  errEl.style.display = 'none';
+
+  if (!pwd) {
+    errEl.textContent = 'Entrez votre mot de passe.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Vérification…';
+
+  try {
+    // Vérifier le mot de passe du manager
+    const { error: authErr } = await getSb().auth.signInWithPassword({
+      email:    SESSION.identifiant,
+      password: pwd
+    });
+    if (authErr) {
+      errEl.textContent = '❌ Mot de passe incorrect.';
+      errEl.style.display = 'block';
+      btn.disabled = false;
+      btn.textContent = '👑 Promouvoir';
+      return;
+    }
+
+    const baseName = user.nom.replace(/^Chef\s+/i, '').trim();
+    const newName  = 'Chef ' + baseName;
+
+    const { error } = await getSb()
+      .from('users')
+      .update({
+        role:            'chef_famille',
+        nom:             newName,
+        chef_famille_id: null,
+        leader_id:       null
+      })
+      .eq('id', _PROMO_USER_ID);
+    if (error) throw error;
+
+    try { await getSb().from('admin_logs').insert({
+      event_type:   'promote_chef_famille',
+      identifiant:  user.identifiant,
+      role_claimed: 'chef_famille',
+      details:      { old_role: user.role, old_nom: user.nom, new_nom: newName, promoted_by: SESSION.id }
+    }); } catch(_) {}
+
+    closePromoModal();
+    toast('✅ ' + newName + ' est maintenant Chef de famille', 'success');
+    await refreshData();
+  } catch(e) {
+    errEl.textContent = '❌ Erreur : ' + (e.message || e);
+    errEl.style.display = 'block';
+    btn.disabled = false;
+    btn.textContent = '👑 Promouvoir';
+  }
 }
 
 /* ══════════════════════════════════════════
@@ -1288,12 +1889,12 @@ function renderClassements() {
     ? inactifs.map(v => {
         const lastJ = DATA.journees.find(j => j.vendeur_id === v.id);
         const days  = lastJ ? Math.floor((now - new Date(lastJ.date_journee))/86400000) : '∞';
-        const ldr   = getUserById(v.leader_id);
+        const ldr   = getUserById(v.parrain_id || v.leader_id);
         return `<div class="rank-card" style="border-left:3px solid var(--red)">
           <div style="font-size:22px">🔻</div>
           <div class="rank-info">
             <div class="rank-name">${v.nom}</div>
-            <div class="rank-sub">Leader : ${ldr?.nom||'—'}</div>
+            <div class="rank-sub">Parrain : ${ldr?.nom||'—'}</div>
           </div>
           <div style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:var(--red)">${days}j</div>
         </div>`;
@@ -1320,7 +1921,7 @@ function navigateToLeader(leaderId) {
 function navigateToVendeur(vendeurId) {
   const u = DATA.users.find(x => x.id === vendeurId);
   ACTIVE_TAB = 'equipe';
-  SELECTED_TEAM_ID = u?.leader_id || null;
+  SELECTED_TEAM_ID = u?.chef_famille_id || u?.leader_id || null;
   SELECTED_VENDEUR_ID = vendeurId;
   SELECTED_LEADER_ID = null;
   goTab('equipe');
@@ -1364,8 +1965,8 @@ function renderAlertes() {
 
   // Leader sans activité équipe depuis +5j
   DATA.users.filter(u => u.role==='leader' && u.actif).forEach(l => {
-    const myVIds = DATA.users.filter(v => v.role==='vendeur' && v.leader_id===l.id).map(v=>v.id);
-    const lastJ  = DATA.journees.find(j => myVIds.includes(j.vendeur_id));
+    const myVIds = DATA.users.filter(v => v.role==='vendeur' && (v.parrain_id===l.id || (!v.parrain_id && v.leader_id===l.id))).map(v=>v.id);
+    const lastJ  = DATA.journees.find(j => myVIds.includes(j.vendeur_id) || j.vendeur_id === l.id);
     if (!lastJ) {
       alertes.push({ type:'warn', msg:`⚠️ Leader ${l.nom} : aucune journée enregistrée dans son équipe` });
     } else {
@@ -1426,8 +2027,8 @@ function renderHistorique() {
   if (filtVendeur) {
     journees = journees.filter(j => j.vendeur_id === filtVendeur);
   } else if (filtLeader) {
-    const myVIds = DATA.users.filter(v => v.role==='vendeur' && v.leader_id===filtLeader).map(v=>v.id);
-    journees = journees.filter(j => myVIds.includes(j.vendeur_id));
+    const myVIds = DATA.users.filter(v => v.role==='vendeur' && (v.parrain_id===filtLeader || (!v.parrain_id && v.leader_id===filtLeader))).map(v=>v.id);
+    journees = journees.filter(j => myVIds.includes(j.vendeur_id) || j.vendeur_id === filtLeader);
   }
 
   const total = journees.length;
@@ -1444,7 +2045,7 @@ function renderHistorique() {
 
   tb.innerHTML = slice.map(j => {
     const v   = getUserById(j.vendeur_id);
-    const ldr = v ? getUserById(v.leader_id) : null;
+    const ldr = v ? getUserById(v.parrain_id || v.leader_id) : null;
     const profit = (Number(j.part_entreprise_nette)||0) - (Number(j.commission_leader)||0);
     return `<tr>
       <td style="white-space:nowrap">${fmtDateShort(j.date_journee)}</td>
