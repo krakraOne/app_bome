@@ -83,9 +83,7 @@ function selectRole(role) {
   const rc = document.querySelector(`.rc[data-role="${role}"]`);
   if (rc) rc.classList.add('on');
 
-  // Panels — manager utilise désormais le panel PIN comme les autres rôles
   document.getElementById('panelPin').classList.add('on');
-  document.getElementById('panelEmail').classList.remove('on');
 
   // Style numpad dots according to role
   document.querySelectorAll('.pdot').forEach(d => {
@@ -306,106 +304,6 @@ function handleFailedAttempt(ident, silent = false) {
   }
 }
 
-/* ═══════════════════════════════
-   LOGIN — MANAGER (Email + MDP)
-═══════════════════════════════ */
-async function doLoginEmail() {
-  const email = document.getElementById('mgrEmail').value.trim().toLowerCase();
-  const pwd   = document.getElementById('mgrPwd').value;
-  if (!email || !pwd) { showErr('Remplissez tous les champs.'); return; }
-
-  const blockedUntil = loginIsBlocked('mgr_' + email);
-  if (blockedUntil) { showBlocked(blockedUntil); return; }
-
-  setLoading('btnEmail', true);
-  hideErr(); hideBlocked();
-
-  try {
-    // ① Auth Supabase (email + mot de passe)
-    const { data: authData, error: authErr } = await sb.auth.signInWithPassword({ email, password: pwd });
-
-    if (authErr || !authData?.user) {
-      console.error('Auth error:', authErr);
-      const d = incrAttempts('mgr_' + email);
-      if (d.n >= MAX_TRIES) showBlocked(d.until);
-      else showErr('Email ou mot de passe incorrect. (' + (MAX_TRIES - d.n) + ' essai(s) restant)');
-      return;
-    }
-
-    // ② Chercher le profil dans la table users par identifiant = email
-    let user = null;
-
-    const { data: byIdent, error: e1 } = await sb
-      .from('users')
-      .select('id, nom, identifiant, role, actif, leader_id')
-      .eq('identifiant', email)
-      .eq('actif', true)
-      .limit(1);
-
-    if (!e1 && byIdent?.length) {
-      user = byIdent[0];
-    }
-
-    // Fallback : chercher par identifiant sans le filtre actif (manager peut être mal configuré)
-    if (!user) {
-      const { data: byIdent2 } = await sb
-        .from('users')
-        .select('id, nom, identifiant, role, actif, leader_id')
-        .eq('identifiant', email)
-        .limit(1);
-      if (byIdent2?.length) user = byIdent2[0];
-    }
-
-    // Dernier fallback : chercher par role=manager ou Manager parmi les actifs
-    if (!user) {
-      const { data: byRole } = await sb
-        .from('users')
-        .select('id, nom, identifiant, role, actif, leader_id')
-        .in('role', ['manager', 'admin', 'Manager', 'Admin'])
-        .eq('actif', true)
-        .limit(1);
-      if (byRole?.length) user = byRole[0];
-    }
-
-    if (!user) {
-      await sb.auth.signOut();
-      showErr('Compte manager introuvable. Vérifiez la table users.');
-      return;
-    }
-
-    // ③ Vérifier que le rôle est bien manager/admin (insensible à la casse)
-    const roleNorm = (user.role || '').toLowerCase();
-    if (!['manager', 'admin'].includes(roleNorm)) {
-      await sb.auth.signOut();
-      showErr('Ce compte n\'a pas les droits manager.');
-      return;
-    }
-    // Normaliser le rôle pour la session
-    user.role = roleNorm;
-
-    if (!user.actif) {
-      await sb.auth.signOut();
-      showErr('Ce compte est désactivé.');
-      return;
-    }
-
-    // ✅ SUCCÈS
-    resetAttempts('mgr_' + email);
-
-    const session = buildSession(user, authData.session?.access_token);
-    saveSession(session);
-
-    lToast('✅ Bienvenue ' + user.nom + ' !', 'success');
-    await new Promise(r => setTimeout(r, 700));
-    redirectByRole(user.role, session);
-
-  } catch (e) {
-    console.error('doLoginEmail error:', e);
-    showErr('Erreur de connexion : ' + (e.message || 'réessayez.'));
-  } finally {
-    setLoading('btnEmail', false);
-  }
-}
 
 /* ═══ SESSION ═══ */
 function buildSession(user, token = null) {
@@ -658,12 +556,6 @@ function setLoading(btnId, on) {
   btn.classList.toggle('loading', on);
 }
 
-function togglePwd() {
-  const inp = document.getElementById('mgrPwd');
-  const eye = document.getElementById('eyeBtn');
-  if (inp.type === 'password') { inp.type = 'text'; eye.textContent = '🙈'; }
-  else { inp.type = 'password'; eye.textContent = '👁️'; }
-}
 
 function lToast(msg, type = 'success') {
   const t = document.getElementById('lToast');
@@ -710,7 +602,7 @@ async function openSqlInsert() {
   if (!_sqlInsertTemplate) _sqlInsertTemplate = pre.textContent;
 
   // Calculer les vrais hashes en temps réel
-  const pins = { '0000': null, '1234': null, '2222': null, '3333': null, '5678': null, '9999': null };
+  const pins = { '0000': null, '1234': null, '2222': null, '3333': null, '5678': null, '7777': null, '9999': null };
   for (const pin of Object.keys(pins)) {
     pins[pin] = await hashPin(pin);
   }
@@ -723,6 +615,7 @@ async function openSqlInsert() {
     'PIN 2222  →  ' + pins['2222'] + '\n' +
     'PIN 3333  →  ' + pins['3333'] + '\n' +
     'PIN 5678  →  ' + pins['5678'] + '\n' +
+    'PIN 7777  →  ' + pins['7777'] + '\n' +
     'PIN 9999  →  ' + pins['9999'];
 
   // Toujours repartir du template original pour éviter les doubles remplacements
@@ -732,6 +625,7 @@ async function openSqlInsert() {
   sql = sql.replace('___HASH_2222___', pins['2222']);
   sql = sql.replace('___HASH_3333___', pins['3333']);
   sql = sql.replace('___HASH_5678___', pins['5678']);
+  sql = sql.replace('___HASH_7777___', pins['7777']);
   sql = sql.replace('___HASH_9999___', pins['9999']);
   pre.textContent = sql;
 }
